@@ -2,7 +2,14 @@
 Database migration and management script
 """
 import sys
+import os
 from pathlib import Path
+
+# Fix Unicode encoding for Windows console
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Add backend directory to path
 backend_dir = Path(__file__).parent
@@ -113,18 +120,19 @@ Database Migration Script
 Usage: python migrate.py [command]
 
 Commands:
-  create    - Create all database tables
-  drop      - Drop all database tables (DESTRUCTIVE!)
-  reset     - Drop and recreate all tables (DESTRUCTIVE!)
-  check     - Check database connection and existing tables
-  help      - Show this help message
+  create/init - Create all database tables
+  drop        - Drop all database tables (DESTRUCTIVE!)
+  reset       - Drop and recreate all tables (DESTRUCTIVE!)
+  check       - Check database connection and existing tables
+  help        - Show this help message
 
 Examples:
   python migrate.py create
+  python migrate.py init
   python migrate.py check
   python migrate.py reset
 
-⚠️  Warning: 'drop' and 'reset' commands will delete all data!
+Warning: 'drop' and 'reset' commands will delete all data!
 """
     print(help_text)
 
@@ -135,7 +143,7 @@ if __name__ == "__main__":
     
     command = sys.argv[1].lower()
     
-    if command == "create":
+    if command in ["create", "init"]:
         create_tables()
     elif command == "drop":
         drop_tables()
@@ -146,6 +154,6 @@ if __name__ == "__main__":
     elif command == "help":
         show_help()
     else:
-        logger.error(f"❌ Unknown command: {command}")
+        logger.error(f"Unknown command: {command}")
         show_help()
         sys.exit(1)

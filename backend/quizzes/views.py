@@ -394,3 +394,36 @@ def get_quiz_history(
             feedback=[]
         ) for attempt in attempts
     ]
+
+@router.delete("/{quiz_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_quiz(
+    quiz_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a quiz and its questions
+    
+    Args:
+        quiz_id: Quiz ID
+        current_user: Current authenticated user
+        db: Database session
+    """
+    quiz = db.query(Quiz).filter(
+        Quiz.id == quiz_id,
+        Quiz.user_id == current_user.id
+    ).first()
+    
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found"
+        )
+    
+    # Delete associated questions and attempts
+    db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz_id).delete()
+    db.query(QuizAttempt).filter(QuizAttempt.quiz_id == quiz_id).delete()
+    
+    db.delete(quiz)
+    db.commit()
+    return {"message": "Quiz deleted successfully"}

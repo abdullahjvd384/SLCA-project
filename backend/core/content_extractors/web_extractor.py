@@ -9,7 +9,7 @@ class WebExtractor:
     """Extract content from web pages"""
     
     def __init__(self):
-        self.api_key = settings.EXTRACTOR_API_KEY
+        self.api_key = settings.extractor_key  # Use property with fallback
         self.base_url = "https://extractorapi.com/api/v1/extractor/"
     
     def fetch_content(self, url: str) -> Dict[str, Any]:
@@ -44,9 +44,14 @@ class WebExtractor:
             max_length: Maximum text length to extract
             
         Returns:
-            Extracted text content
+            Extracted text content or None if API key not configured
         """
         try:
+            # Check if API key is configured
+            if not self.api_key or self.api_key == "":
+                print("Warning: ExtractorAPI key not configured - skipping web extraction")
+                return None
+            
             webpage_data = self.fetch_content(url)
             
             if "text" in webpage_data and webpage_data["text"]:

@@ -15,6 +15,7 @@ from users.auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user, get_current_verified_user
 )
+from utils.logger import logger
 from jose import jwt, JWTError
 import uuid
 
@@ -32,9 +33,15 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     Returns:
         Token and user data
     """
+    from utils.logger import logger
+    
+    logger.info(f"Registration attempt for email: {user_data.email}")
+    logger.info(f"Registration data: first_name={user_data.first_name}, last_name={user_data.last_name}")
+    
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
+        logger.warning(f"Registration failed: Email {user_data.email} already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
@@ -50,12 +57,15 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         is_verified=True  # Auto-verified for MVP; enhance with SMTP for production
     )
     
+    logger.info(f"Creating new user: {user_data.email}")
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    logger.info(f"User created successfully with ID: {new_user.id}")
     
     # Create access token
     access_token = create_access_token(data={"sub": str(new_user.id)})
+    logger.info(f"Access token created for user: {new_user.id}")
     
     return TokenResponse(
         access_token=access_token,
@@ -74,16 +84,30 @@ def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
     Returns:
         Token and user data
     """
+    logger.info(f"Login attempt for email: {credentials.email}")
+    
     # Find user
     user = db.query(User).filter(User.email == credentials.email).first()
-    if not user or not verify_password(credentials.password, user.password_hash):
+    if not user:
+        logger.warning(f"Login failed: User not found - {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    # Verify password
+    if not verify_password(credentials.password, user.password_hash):
+        logger.warning(f"Login failed: Invalid password for user - {credentials.email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
     
     # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
+    logger.info(f"Login successful for user: {user.email} (ID: {user.id})")
     
     return TokenResponse(
         access_token=access_token,

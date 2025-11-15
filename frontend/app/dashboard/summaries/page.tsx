@@ -25,10 +25,13 @@ export default function SummariesPage() {
   async function fetchSummaries() {
     try {
       setIsLoading(true);
-      const data = await api.getSummaryHistory();
-      setSummaries(data);
+      const data = await api.getSummaries();
+      // Ensure data is an array
+      setSummaries(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error('Failed to load summaries:', error);
       toast.error('Failed to load summaries');
+      setSummaries([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }

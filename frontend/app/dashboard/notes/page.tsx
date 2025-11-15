@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Plus, Search, BookOpen, Edit, Trash2, Calendar, Tag } from 'lucide-react';
+import { Plus, Search, BookOpen, Trash2, Calendar, Tag, Download } from 'lucide-react';
 import type { Note } from '@/lib/types';
 import { formatDate, truncateText } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -25,9 +25,12 @@ export default function NotesPage() {
     try {
       setIsLoading(true);
       const data = await api.getNotes();
-      setNotes(data);
+      // Ensure data is an array
+      setNotes(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error('Failed to load notes:', error);
       toast.error('Failed to load notes');
+      setNotes([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -42,6 +45,41 @@ export default function NotesPage() {
       setNotes(notes.filter((note) => note.id !== id));
     } catch (error) {
       toast.error('Failed to delete note');
+    }
+  }
+
+  async function handleDownloadDocx(id: number, title: string) {
+    try {
+      toast.loading('Preparing DOCX download...', { id: 'docx-download' });
+      
+      console.log('Downloading DOCX for note:', id);
+      const blob = await api.exportNoteDocx(id);
+      
+      console.log('DOCX blob received, size:', blob.size);
+      
+      if (!blob || blob.size === 0) {
+        throw new Error('Received empty DOCX file');
+      }
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+      toast.success('DOCX downloaded successfully', { id: 'docx-download' });
+    } catch (error: any) {
+      console.error('Download failed:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to download DOCX';
+      toast.error(errorMessage, { id: 'docx-download' });
     }
   }
 
@@ -141,18 +179,21 @@ export default function NotesPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Link href={`/dashboard/notes/${note.id}`} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </Link>
+                <div className="flex gap-3">
                   <Button
-                    variant="ghost"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleDownloadDocx(note.id, note.title)}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download DOCX
+                  </Button>
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handleDelete(note.id)}
-                    className="text-red-600 hover:bg-red-50"
+                    className="text-red-600 hover:bg-red-50 border-red-200"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -33,8 +33,10 @@ export default function LoginPage() {
       await login(data);
       toast.success('Login successful!');
       router.push('/dashboard');
-    } catch (error) {
-      toast.error(authError || 'Login failed. Please check your credentials.');
+    } catch (error: any) {
+      const errorMessage = error.message || authError || 'Login failed. Please check your credentials.';
+      console.error('Login error:', errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ export default function DocumentsPage() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [url, setUrl] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -36,9 +37,12 @@ export default function DocumentsPage() {
     try {
       setIsLoading(true);
       const data = await api.getDocuments();
-      setDocuments(data);
+      // Ensure data is an array
+      setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error('Failed to load documents:', error);
       toast.error('Failed to load documents');
+      setDocuments([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -56,10 +60,16 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
-      await api.uploadDocument(file);
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.uploadDocument(formData);
       toast.success('Document uploaded successfully!');
       await fetchDocuments();
+      // Reset file input
+      event.target.value = '';
     } catch (error: any) {
+      console.error('Upload error:', error);
       toast.error(error.response?.data?.detail || 'Failed to upload document');
     } finally {
       setIsUploading(false);
@@ -72,19 +82,20 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
-      await api.processUrl(url);
+      await api.addDocumentFromUrl({ url, title: url });
       toast.success('URL content processed successfully!');
       setUrl('');
       setShowUrlInput(false);
       await fetchDocuments();
     } catch (error: any) {
+      console.error('URL processing error:', error);
       toast.error(error.response?.data?.detail || 'Failed to process URL');
     } finally {
       setIsUploading(false);
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
@@ -125,30 +136,31 @@ export default function DocumentsPage() {
             <LinkIcon className="h-4 w-4 mr-2" />
             Add URL
           </Button>
-          <label>
-            <Button variant="primary" disabled={isUploading} asChild>
-              <span>
-                {isUploading ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload File
-                  </>
-                )}
-              </span>
-            </Button>
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.jpg,.jpeg,.png"
-              onChange={handleFileUpload}
-              disabled={isUploading}
-            />
-          </label>
+          <Button
+            variant="primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload File
+              </>
+            )}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.jpg,.jpeg,.png"
+            onChange={handleFileUpload}
+            disabled={isUploading}
+          />
         </div>
       </div>
 
@@ -208,19 +220,13 @@ export default function DocumentsPage() {
                 : 'Upload your first document to get started'}
             </p>
             {!searchQuery && (
-              <label>
-                <Button variant="primary">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.docx,.pptx,.txt,.md,.csv,.xlsx,.jpg,.jpeg,.png"
-                  onChange={handleFileUpload}
-                  disabled={isUploading}
-                />
-              </label>
+              <Button
+                variant="primary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Document
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -231,7 +237,7 @@ export default function DocumentsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">{getFileTypeIcon(doc.file_type)}</span>
+                    <span className="text-2xl">{getFileTypeIcon(doc.content_type)}</span>
                     <div>
                       <CardTitle className="text-base">{doc.title}</CardTitle>
                       <CardDescription className="text-xs">
@@ -245,7 +251,7 @@ export default function DocumentsPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Type:</span>
-                    <span className="font-medium uppercase">{doc.file_type}</span>
+                    <span className="font-medium uppercase">{doc.content_type}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Status:</span>
@@ -261,11 +267,11 @@ export default function DocumentsPage() {
                       {doc.processing_status}
                     </span>
                   </div>
-                  {doc.url && (
+                  {doc.file_url && (
                     <div className="flex items-center gap-2 text-sm text-blue-600">
                       <ExternalLink className="h-4 w-4" />
                       <a
-                        href={doc.url}
+                        href={doc.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline truncate"

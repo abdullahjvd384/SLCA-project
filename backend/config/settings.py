@@ -4,7 +4,8 @@ Application settings and configuration
 import os
 from pathlib import Path
 from typing import List, Optional
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -13,67 +14,98 @@ load_dotenv()
 class Settings(BaseSettings):
     """Application settings"""
     
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
+    
     # App Configuration
     APP_NAME: str = "Student Learning & Career Assistant"
     VERSION: str = "1.0.0"
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
-    HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", 8000))
+    DEBUG: bool = True
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://slca_user:password@localhost:5432/slca_db")
+    DATABASE_URL: str = "postgresql://slca_user:password@localhost:5432/slca_db"
     
     # JWT Configuration
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", 24))
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_HOURS: int = 24
     
     # AI Services
-    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    GEMINI_EMBEDDING_MODEL: str = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
     
-    # External APIs
-    SUPADATA_API_KEY: str = os.getenv("SUPADATA_API_KEY", "")
-    EXTRACTOR_API_KEY: str = os.getenv("EXTRACTOR_API_KEY", "")
-    OCR_API_KEY: str = os.getenv("OCR_API_KEY", "")
-    OCR_API_SECRET: str = os.getenv("OCR_API_SECRET", "")
-    OCR_API_URL: str = os.getenv("OCR_API_URL", "https://www.imagetotext.com/api/ocr")
-    OCR_SERVICE: str = os.getenv("OCR_SERVICE", "api")
+    # External APIs (Optional - will use defaults if not in .env)
+    SUPADATA_API_KEY: str = ""
+    EXTRACTOR_API_KEY: str = ""
+    OCR_API_KEY: str = ""
+    OCR_API_SECRET: str = ""
+    OCR_API_URL: str = "https://www.imagetotext.com/api/ocr"
+    OCR_SERVICE: str = "api"
+    
+    @property
+    def supadata_key(self) -> str:
+        """Get Supadata API key with fallback to default"""
+        return self.SUPADATA_API_KEY or "sd_9ca474be577377227db0a0a4a023dffb"
+    
+    @property
+    def extractor_key(self) -> str:
+        """Get ExtractorAPI key with fallback to default"""
+        return self.EXTRACTOR_API_KEY or "a876ddff9cf8628284d2d765e7cb040ab23fd7fa"
+    
+    @property
+    def ocr_key(self) -> str:
+        """Get OCR API key with fallback to default"""
+        return self.OCR_API_KEY or "197a54c4-8420-11f0-a2aa-10bf487fdf8e"
+    
+    @property
+    def ocr_secret(self) -> str:
+        """Get OCR API secret with fallback to default"""
+        return self.OCR_API_SECRET or "197a54dd-8420-11f0-a2aa-10bf487fdf8e"
     
     # Vector Database
-    VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./vector_store")
+    VECTOR_DB_PATH: str = "./vector_store"
     
     # File Upload Configuration
-    MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", 50))
-    UPLOAD_FOLDER: Path = Path(os.getenv("UPLOAD_FOLDER", "uploads"))
-    ALLOWED_EXTENSIONS: List[str] = os.getenv(
-        "ALLOWED_EXTENSIONS", 
-        "pdf,docx,pptx,jpg,jpeg,png,txt,xlsx,csv"
-    ).split(",")
+    MAX_FILE_SIZE_MB: int = 50
+    UPLOAD_FOLDER: str = "uploads"
+    ALLOWED_EXTENSIONS: str = "pdf,docx,pptx,jpg,jpeg,png,txt,xlsx,csv,md,json"
     
     # Email Configuration
-    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
-    EMAIL_USER: str = os.getenv("EMAIL_USER", "")
-    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
-    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@slca.com")
+    EMAIL_HOST: str = "smtp.gmail.com"
+    EMAIL_PORT: int = 587
+    EMAIL_USER: str = ""
+    EMAIL_PASSWORD: str = ""
+    EMAIL_FROM: str = "noreply@slca.com"
     
     # Frontend
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL: str = "http://localhost:3000"
     
-    # CORS
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ]
+    @property
+    def cors_origins(self) -> List[str]:
+        """Get CORS origins list"""
+        return [
+            "http://localhost:3000",
+            "http://localhost:3001",
+        ]
     
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    @property
+    def allowed_extensions_list(self) -> List[str]:
+        """Convert ALLOWED_EXTENSIONS string to list"""
+        return [ext.strip() for ext in self.ALLOWED_EXTENSIONS.split(",")]
+    
+    @property
+    def upload_folder_path(self) -> Path:
+        """Get upload folder as Path object"""
+        return Path(self.UPLOAD_FOLDER)
 
 # Global settings instance
 settings = Settings()
 
 # Ensure upload directory exists
-settings.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+settings.upload_folder_path.mkdir(parents=True, exist_ok=True)

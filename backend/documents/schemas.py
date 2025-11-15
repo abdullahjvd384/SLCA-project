@@ -40,14 +40,17 @@ class DocumentResponse(BaseModel):
     content_type: ContentTypeEnum
     original_filename: Optional[str]
     file_url: Optional[str]
+    file_path: Optional[str]
     upload_date: datetime
     file_size: Optional[int]
     processing_status: ProcessingStatusEnum
-    metadata: Optional[Dict[str, Any]]
+    doc_metadata: Optional[Dict[str, Any]] = None  # Match model field name
     created_at: datetime
     
     class Config:
         from_attributes = True
+        # Map doc_metadata to metadata for serialization
+        populate_by_name = True
 
 class DocumentListResponse(BaseModel):
     """Schema for document list response"""

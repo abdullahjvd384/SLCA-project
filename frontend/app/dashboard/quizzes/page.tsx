@@ -29,10 +29,13 @@ export default function QuizzesPage() {
         api.getQuizzes(),
         api.getQuizAnalytics(),
       ]);
-      setQuizzes(quizzesData);
+      // Ensure quizzesData is an array
+      setQuizzes(Array.isArray(quizzesData) ? quizzesData : []);
       setAnalytics(analyticsData);
     } catch (error) {
+      console.error('Failed to load quizzes:', error);
       toast.error('Failed to load quizzes');
+      setQuizzes([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -40,8 +43,7 @@ export default function QuizzesPage() {
 
   const filteredQuizzes = quizzes.filter(
     (quiz) =>
-      quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      quiz.topic.toLowerCase().includes(searchQuery.toLowerCase())
+      quiz.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (isLoading) {

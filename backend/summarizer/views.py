@@ -89,6 +89,27 @@ def generate_summary(
     
     return SummaryResponse.from_orm(new_summary)
 
+@router.get("/", response_model=list[SummaryResponse])
+def get_all_summaries(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all summaries for the current user
+    
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        List of all user's summaries
+    """
+    summaries = db.query(Summary).filter(
+        Summary.user_id == current_user.id
+    ).order_by(Summary.generated_at.desc()).all()
+    
+    return [SummaryResponse.from_orm(summary) for summary in summaries]
+
 @router.get("/document/{document_id}", response_model=list[SummaryResponse])
 def get_summaries_by_document(
     document_id: str,
@@ -112,3 +133,32 @@ def get_summaries_by_document(
     ).all()
     
     return [SummaryResponse.from_orm(summary) for summary in summaries]
+
+@router.delete("/{summary_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_summary(
+    summary_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a summary
+    
+    Args:
+        summary_id: Summary ID
+        current_user: Current authenticated user
+        db: Database session
+    """
+    summary = db.query(Summary).filter(
+        Summary.id == summary_id,
+        Summary.user_id == current_user.id
+    ).first()
+    
+    if not summary:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Summary not found"
+        )
+    
+    db.delete(summary)
+    db.commit()
+    return {"message": "Summary deleted successfully"}

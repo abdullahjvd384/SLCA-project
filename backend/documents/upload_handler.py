@@ -14,7 +14,7 @@ class UploadHandler:
     
     def __init__(self):
         """Initialize upload handler"""
-        self.upload_folder = settings.UPLOAD_FOLDER
+        self.upload_folder = settings.upload_folder_path
         self.upload_folder.mkdir(parents=True, exist_ok=True)
     
     def save_file(self, file: UploadFile, user_id: uuid.UUID) -> dict:
@@ -69,6 +69,34 @@ class UploadHandler:
         except Exception as e:
             print(f"Error deleting file: {e}")
             return False
+    
+    def extract_content_on_demand(self, file_path: str, content_type: str) -> dict:
+        """
+        Extract content from file only when needed (on-demand)
+        This is called only when generating summaries, notes, or quizzes
+        NOT during upload - saves database storage and processing time
+        
+        Args:
+            file_path: Path to file
+            content_type: Type of content
+            
+        Returns:
+            Dictionary with extracted text and metadata
+        """
+        try:
+            from core.rag_pipeline import rag_pipeline
+            
+            # Extract based on content type
+            if content_type in ['youtube', 'article']:
+                # For URLs, we'd need the URL not file path
+                return {"success": False, "error": "URL content requires URL not file path"}
+            else:
+                # Extract from file
+                result = rag_pipeline.process_document(file_path)
+                return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
 # Global upload handler instance
 upload_handler = UploadHandler()
+

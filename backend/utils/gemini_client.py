@@ -3,7 +3,7 @@ Gemini API client for AI operations
 """
 import os
 from typing import Optional, List, Dict, Any
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+import google.generativeai as genai
 from langdetect import detect, LangDetectException
 from config.settings import settings
 
@@ -12,14 +12,9 @@ class GeminiClient:
     
     def __init__(self):
         """Initialize Gemini client"""
-        os.environ["GOOGLE_API_KEY"] = settings.GOOGLE_API_KEY
-        self.llm = ChatGoogleGenerativeAI(
-            model=settings.GEMINI_MODEL,
-            temperature=0.3
-        )
-        self.embedding_model = GoogleGenerativeAIEmbeddings(
-            model=settings.GEMINI_EMBEDDING_MODEL
-        )
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.embedding_model_name = settings.GEMINI_EMBEDDING_MODEL
     
     def generate_text(self, prompt: str, temperature: float = 0.3) -> str:
         """
@@ -33,12 +28,33 @@ class GeminiClient:
             Generated text
         """
         try:
-            llm = ChatGoogleGenerativeAI(
-                model=settings.GEMINI_MODEL,
-                temperature=temperature
+            generation_config = genai.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=8000,  # Increase token limit for long notes
             )
-            response = llm.invoke(prompt)
-            return response.content
+            
+            # Configure safety settings to be more lenient for educational content
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ]
+            
+            response = self.model.generate_content(
+                prompt, 
+                generation_config=generation_config,
+                safety_settings=safety_settings
+            )
+            
+            # Check if response was blocked
+            if not response.text:
+                # Try to get the reason if blocked
+                if hasattr(response, 'prompt_feedback'):
+                    raise Exception(f"Content generation blocked: {response.prompt_feedback}")
+                raise Exception("Content generation returned empty response")
+            
+            return response.text
         except Exception as e:
             raise Exception(f"Error generating text: {str(e)}")
     
@@ -53,8 +69,12 @@ class GeminiClient:
             List of embedding values
         """
         try:
-            embeddings = self.embedding_model.embed_query(text)
-            return embeddings
+            result = genai.embed_content(
+                model=self.embedding_model_name,
+                content=text,
+                task_type="retrieval_document"
+            )
+            return result['embedding']
         except Exception as e:
             raise Exception(f"Error generating embeddings: {str(e)}")
     

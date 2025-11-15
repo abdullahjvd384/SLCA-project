@@ -27,7 +27,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -81,9 +81,9 @@ async def startup_event():
     # Initialize database
     try:
         init_db()
-        logger.info("✅ Database initialized successfully")
+        logger.info("[OK] Database initialized successfully")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {str(e)}")
+        logger.error(f"[ERROR] Database initialization failed: {str(e)}")
         raise
     
     # Create upload directories
@@ -91,17 +91,17 @@ async def startup_event():
     directories = ['uploads/documents', 'uploads/resumes', 'vector_store', 'logs']
     for directory in directories:
         Path(directory).mkdir(parents=True, exist_ok=True)
-    logger.info("✅ Upload directories created")
+    logger.info("[OK] Upload directories created")
     
-    logger.info(f"✅ Server started on {settings.HOST}:{settings.PORT}")
-    logger.info(f"📚 API Documentation: http://{settings.HOST}:{settings.PORT}/docs")
+    logger.info(f"[OK] Server started on {settings.HOST}:{settings.PORT}")
+    logger.info(f"[INFO] API Documentation: http://{settings.HOST}:{settings.PORT}/docs")
     logger.info("=" * 50)
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
     logger.info("Shutting down SLCA Backend Server...")
-    logger.info("✅ Cleanup completed")
+    logger.info("[OK] Cleanup completed")
 
 @app.get("/")
 def read_root():

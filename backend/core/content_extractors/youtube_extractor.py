@@ -9,7 +9,7 @@ class YouTubeExtractor:
     """Extract transcripts from YouTube videos"""
     
     def __init__(self):
-        self.api_key = settings.SUPADATA_API_KEY
+        self.api_key = settings.supadata_key  # Use property with fallback
         self.base_url = "https://api.supadata.ai/v1/transcript"
     
     def fetch_transcript(self, youtube_url: str, prefer_lang: str = "en") -> Dict[str, Any]:
@@ -66,9 +66,14 @@ class YouTubeExtractor:
             youtube_url: YouTube video URL
             
         Returns:
-            Extracted transcript text
+            Extracted transcript text or None if API key not configured
         """
         try:
+            # Check if API key is configured
+            if not self.api_key or self.api_key == "":
+                print("Warning: Supadata API key not configured - skipping YouTube extraction")
+                return None
+            
             transcript_data = self.fetch_transcript(youtube_url, prefer_lang="en")
             
             if "content" in transcript_data and transcript_data["content"]:

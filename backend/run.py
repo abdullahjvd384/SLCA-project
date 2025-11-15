@@ -25,14 +25,14 @@ def check_environment():
             missing_vars.append(var)
     
     if missing_vars:
-        logger.error("❌ Missing required environment variables:")
+        logger.error("Missing required environment variables:")
         for var in missing_vars:
             logger.error(f"  - {var}")
-        logger.info("\n💡 Please create a .env file with required variables")
+        logger.info("\nPlease create a .env file with required variables")
         logger.info("   See .env.example for template")
         return False
     
-    logger.info("✅ All required environment variables are set")
+    logger.info("All required environment variables are set")
     return True
 
 def check_directories():
@@ -49,36 +49,46 @@ def check_directories():
     
     for directory in directories:
         Path(directory).mkdir(parents=True, exist_ok=True)
-        logger.info(f"✅ Directory ensured: {directory}")
+        logger.info(f"Directory ensured: {directory}")
 
 def check_database():
     """Check database connection"""
     from utils.logger import logger
     from config.database import engine
+    from sqlalchemy import text
     
     try:
         # Test connection
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
-        logger.info("✅ Database connection successful")
+            conn.execute(text("SELECT 1"))
+        logger.info("Database connection successful")
         return True
     except Exception as e:
-        logger.error(f"❌ Database connection failed: {str(e)}")
-        logger.info("\n💡 Make sure PostgreSQL is running and DATABASE_URL is correct")
+        logger.error(f"Database connection failed: {str(e)}")
+        logger.info("\nMake sure PostgreSQL is running and DATABASE_URL is correct")
         return False
 
 def initialize_database():
-    """Initialize database tables"""
+    """Check if database tables exist"""
     from utils.logger import logger
-    from config.database import init_db
+    from config.database import engine
+    from sqlalchemy import inspect
     
     try:
-        logger.info("Initializing database tables...")
-        init_db()
-        logger.info("✅ Database tables initialized")
-        return True
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        
+        if len(existing_tables) > 0:
+            logger.info(f"Database already initialized with {len(existing_tables)} tables")
+            return True
+        else:
+            logger.info("Initializing database tables...")
+            from config.database import init_db
+            init_db()
+            logger.info("Database tables initialized")
+            return True
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {str(e)}")
+        logger.error(f"Failed to check/initialize database: {str(e)}")
         return False
 
 def check_api_keys():
@@ -103,10 +113,10 @@ def check_api_keys():
             missing.append(service)
     
     if configured:
-        logger.info(f"✅ Configured API keys: {', '.join(configured)}")
+        logger.info(f"Configured API keys: {', '.join(configured)}")
     
     if missing:
-        logger.warning(f"⚠️  Missing API keys: {', '.join(missing)}")
+        logger.warning(f"Missing API keys: {', '.join(missing)}")
         logger.info("   Some features may not work without these keys")
 
 def run_startup_checks():
@@ -136,7 +146,7 @@ def run_startup_checks():
     check_api_keys()
     
     logger.info("=" * 50)
-    logger.info("✅ All startup checks passed!")
+    logger.info("All startup checks passed!")
     logger.info("=" * 50)
     
     return True
@@ -169,5 +179,5 @@ if __name__ == "__main__":
         # Start server
         start_server()
     else:
-        print("\n❌ Startup checks failed. Please fix the errors above and try again.")
+        print("\nStartup checks failed. Please fix the errors above and try again.")
         sys.exit(1)

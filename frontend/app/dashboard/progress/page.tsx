@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import toast from 'react-hot-toast';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,

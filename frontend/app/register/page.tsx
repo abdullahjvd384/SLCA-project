@@ -28,6 +28,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
+      console.log('Form submitted with data:', { ...data, password: '[REDACTED]', confirmPassword: '[REDACTED]' });
       setIsLoading(true);
       clearError();
       await registerUser({
@@ -36,9 +37,11 @@ export default function RegisterPage() {
         first_name: data.first_name,
         last_name: data.last_name,
       });
+      console.log('Registration successful, redirecting to dashboard');
       toast.success('Account created successfully!');
       router.push('/dashboard');
     } catch (error) {
+      console.error('Registration failed:', error);
       toast.error(authError || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);

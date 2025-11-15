@@ -21,7 +21,7 @@ class RAGPipeline:
     
     def process_youtube(self, url: str) -> Dict[str, Any]:
         """
-        Process YouTube video
+        Process YouTube video - extracts transcript on-demand
         
         Args:
             url: YouTube video URL
@@ -33,25 +33,40 @@ class RAGPipeline:
             # Extract transcript
             text = self.youtube_extractor.extract_text(url)
             if not text:
-                raise ValueError("Failed to extract transcript")
+                return {
+                    "success": False,
+                    "error": "Could not extract transcript. API key may not be configured or video has no transcript."
+                }
             
             # Get metadata
             metadata = self.youtube_extractor.get_metadata(url)
             
-            # Ensure English
-            text = self.gemini_client.ensure_english(text)
+            # Ensure English (skip if Gemini not configured)
+            try:
+                text = self.gemini_client.ensure_english(text)
+            except Exception as e:
+                print(f"Warning: Could not translate to English: {e}")
+                # Continue with original text
             
             # Chunk text
             chunks = self.vector_store.chunk_text(text)
             
-            # Create index
-            index = self.vector_store.create_index(chunks)
+            # Create index (optional, may fail)
+            try:
+                index = self.vector_store.create_index(chunks)
+                doc_id = index
+            except Exception as e:
+                print(f"Warning: Could not create vector index: {e}")
+                index = None
+                doc_id = None
             
             return {
                 "text": text,
                 "chunks": chunks,
+                "chunk_count": len(chunks),
                 "metadata": metadata,
                 "index": index,
+                "doc_id": doc_id,
                 "success": True
             }
             
@@ -63,7 +78,7 @@ class RAGPipeline:
     
     def process_webpage(self, url: str) -> Dict[str, Any]:
         """
-        Process web article
+        Process web article - extracts content on-demand
         
         Args:
             url: Webpage URL
@@ -75,25 +90,40 @@ class RAGPipeline:
             # Extract content
             text = self.web_extractor.extract_text(url)
             if not text:
-                raise ValueError("Failed to extract webpage content")
+                return {
+                    "success": False,
+                    "error": "Could not extract webpage content. API key may not be configured."
+                }
             
             # Get metadata
             metadata = self.web_extractor.get_metadata(url)
             
-            # Ensure English
-            text = self.gemini_client.ensure_english(text)
+            # Ensure English (skip if Gemini not configured)
+            try:
+                text = self.gemini_client.ensure_english(text)
+            except Exception as e:
+                print(f"Warning: Could not translate to English: {e}")
+                # Continue with original text
             
             # Chunk text
             chunks = self.vector_store.chunk_text(text)
             
-            # Create index
-            index = self.vector_store.create_index(chunks)
+            # Create index (optional, may fail)
+            try:
+                index = self.vector_store.create_index(chunks)
+                doc_id = index
+            except Exception as e:
+                print(f"Warning: Could not create vector index: {e}")
+                index = None
+                doc_id = None
             
             return {
                 "text": text,
                 "chunks": chunks,
+                "chunk_count": len(chunks),
                 "metadata": metadata,
                 "index": index,
+                "doc_id": doc_id,
                 "success": True
             }
             

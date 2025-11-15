@@ -39,7 +39,7 @@ class Document(Base):
     file_size = Column(Integer)  # in bytes
     processing_status = Column(SQLEnum(ProcessingStatus), default=ProcessingStatus.PENDING)
     vector_db_reference_id = Column(String(255))
-    metadata = Column(JSONB)
+    doc_metadata = Column(JSONB)  # Renamed from metadata to avoid SQLAlchemy conflict
     extracted_text = Column(Text)  # Store extracted content
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

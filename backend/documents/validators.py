@@ -55,10 +55,10 @@ class DocumentValidator:
         """
         ext = Path(filename).suffix.lower().lstrip('.')
         
-        if ext not in settings.ALLOWED_EXTENSIONS:
+        if ext not in settings.allowed_extensions_list:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file format. Allowed formats: {', '.join(settings.ALLOWED_EXTENSIONS)}"
+                detail=f"Unsupported file format. Allowed formats: {', '.join(settings.allowed_extensions_list)}"
             )
         
         return True

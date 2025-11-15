@@ -3,6 +3,7 @@ Authentication utilities: JWT tokens, password hashing, etc.
 """
 from datetime import datetime, timedelta
 from typing import Optional
+import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -18,13 +19,26 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # HTTP Bearer token
 security = HTTPBearer()
 
+def _normalize_password(password: str) -> str:
+    """
+    Normalize password to handle bcrypt's 72-byte limit.
+    Uses SHA-256 to hash long passwords before bcrypt.
+    """
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        # Hash long passwords with SHA-256 first
+        return hashlib.sha256(password_bytes).hexdigest()
+    return password
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    normalized_password = _normalize_password(plain_password)
+    return pwd_context.verify(normalized_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    normalized_password = _normalize_password(password)
+    return pwd_context.hash(normalized_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """

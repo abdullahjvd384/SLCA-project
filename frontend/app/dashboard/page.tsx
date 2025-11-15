@@ -26,9 +26,12 @@ export default function DashboardPage() {
           api.getActivityLog(),
         ]);
         setProgress(progressData);
-        setActivities(activityData.slice(0, 5)); // Latest 5 activities
+        // Ensure activityData is an array
+        const activities = Array.isArray(activityData) ? activityData : [];
+        setActivities(activities.slice(0, 5)); // Latest 5 activities
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
+        setActivities([]); // Set empty array on error
       } finally {
         setIsLoading(false);
       }

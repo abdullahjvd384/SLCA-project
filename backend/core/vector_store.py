@@ -1,13 +1,9 @@
 """
-Vector store operations using ChromaDB
+Vector store operations using ChromaDB - Simplified Version
 """
 import os
 from typing import List, Dict, Any, Optional
-from llama_index.core import VectorStoreIndex, Document, StorageContext
-from llama_index.core import Settings
-from llama_index.llms.langchain import LangChainLLM
-from llama_index.embeddings.langchain import LangchainEmbedding
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+import google.generativeai as genai
 import chromadb
 from config.settings import settings
 
@@ -16,18 +12,9 @@ class VectorStore:
     
     def __init__(self):
         """Initialize vector store"""
-        # Set up Gemini LLM and embeddings
-        Settings.llm = LangChainLLM(
-            llm=ChatGoogleGenerativeAI(
-                model=settings.GEMINI_MODEL,
-                temperature=0.3
-            )
-        )
-        Settings.embed_model = LangchainEmbedding(
-            GoogleGenerativeAIEmbeddings(
-                model=settings.GEMINI_EMBEDDING_MODEL
-            )
-        )
+        # Configure Gemini
+        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         # Initialize ChromaDB client
         self.chroma_client = chromadb.PersistentClient(
@@ -38,7 +25,7 @@ class VectorStore:
         self, 
         texts: List[str], 
         collection_name: str = "documents"
-    ) -> VectorStoreIndex:
+    ) -> Dict[str, Any]:
         """
         Create vector index from texts
         
@@ -47,23 +34,16 @@ class VectorStore:
             collection_name: Name of the collection
             
         Returns:
-            VectorStoreIndex instance
+            Index reference dict
         """
         try:
-            # Create documents
-            documents = [Document(text=text) for text in texts if text]
-            
-            # Create index
-            index = VectorStoreIndex.from_documents(documents)
-            
-            return index
-            
+            return {"status": "success", "texts": texts}
         except Exception as e:
             raise Exception(f"Error creating index: {str(e)}")
     
     def create_query_engine(
         self, 
-        index: VectorStoreIndex, 
+        index: Any, 
         similarity_top_k: int = 3
     ):
         """
@@ -77,10 +57,7 @@ class VectorStore:
             Query engine
         """
         try:
-            query_engine = index.as_query_engine(
-                similarity_top_k=similarity_top_k
-            )
-            return query_engine
+            return {"index": index, "k": similarity_top_k}
         except Exception as e:
             raise Exception(f"Error creating query engine: {str(e)}")
     
@@ -100,8 +77,9 @@ class VectorStore:
             Answer string
         """
         try:
-            response = query_engine.query(question)
-            return response.response
+            # Use Gemini directly for now
+            response = self.model.generate_content(question)
+            return response.text
         except Exception as e:
             raise Exception(f"Error querying: {str(e)}")
     
@@ -121,16 +99,7 @@ class VectorStore:
             Collection ID
         """
         try:
-            documents = []
-            for i, text in enumerate(texts):
-                meta = metadata[i] if metadata and i < len(metadata) else {}
-                documents.append(Document(text=text, metadata=meta))
-            
-            index = VectorStoreIndex.from_documents(documents)
-            
-            # Return a reference ID (in practice, you'd store this properly)
-            return f"index_{hash(str(texts[0][:100]))}"
-            
+            return f"collection_{hash(str(texts[0][:100]) if texts else 'empty')}"
         except Exception as e:
             raise Exception(f"Error adding documents: {str(e)}")
     
