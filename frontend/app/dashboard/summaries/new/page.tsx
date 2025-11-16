@@ -29,7 +29,7 @@ export default function NewSummaryPage() {
   } = useForm<GenerateSummaryFormData>({
     resolver: zodResolver(generateSummarySchema),
     defaultValues: {
-      summary_type: 'detailed',
+      summary_length: 'medium',
     },
   });
 
@@ -48,11 +48,24 @@ export default function NewSummaryPage() {
   const onSubmit = async (data: GenerateSummaryFormData) => {
     try {
       setIsLoading(true);
-      await api.generateSummary(data);
+      console.log('Submitting summary data:', data);
+      
+      // Prepare the request data
+      const requestData = {
+        document_id: data.document_id,
+        summary_length: data.summary_length
+      };
+      
+      console.log('Request data:', requestData);
+      const result = await api.generateSummary(requestData);
+      console.log('Summary generated:', result);
+      
       toast.success('Summary generated successfully!');
       router.push('/dashboard/summaries');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to generate summary');
+      console.error('Summary generation error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate summary';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -92,93 +105,54 @@ export default function NewSummaryPage() {
                     type="radio"
                     value="document"
                     checked={sourceType === 'document'}
-                    onChange={() => {
-                      setSourceType('document');
-                      setValue('url', undefined);
-                    }}
+                    onChange={() => setSourceType('document')}
                     className="text-blue-600"
                   />
                   <span>From Document</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="url"
-                    checked={sourceType === 'url'}
-                    onChange={() => {
-                      setSourceType('url');
-                      setValue('document_id', undefined);
-                    }}
-                    className="text-blue-600"
-                  />
-                  <span>From URL</span>
-                </label>
               </div>
             </div>
 
-            {/* Document or URL Selection */}
-            {sourceType === 'document' ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Document
-                </label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  {...register('document_id', {
-                    setValueAs: (v) => (v === '' ? undefined : Number(v)),
-                  })}
-                >
-                  <option value="">Choose a document</option>
-                  {documents.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.title}
-                    </option>
-                  ))}
-                </select>
-                {errors.document_id && (
-                  <p className="mt-1 text-sm text-red-600">{errors.document_id.message}</p>
-                )}
-              </div>
-            ) : (
-              <Input
-                label="Enter URL"
-                type="url"
-                placeholder="https://example.com/article"
-                error={errors.url?.message}
-                {...register('url')}
-              />
-            )}
+            {/* Document Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select Document
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {...register('document_id')}
+              >
+                <option value="">Choose a document</option>
+                {documents.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.title}
+                  </option>
+                ))}
+              </select>
+              {errors.document_id && (
+                <p className="mt-1 text-sm text-red-600">{errors.document_id.message}</p>
+              )}
+            </div>
 
-            {/* Summary Type */}
+            {/* Summary Length */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Summary Type
               </label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                {...register('summary_type')}
+                {...register('summary_length')}
               >
-                <option value="brief">Brief (2-3 sentences)</option>
+                <option value="short">Bullet Points (2-3 points)</option>
+                <option value="medium">Medium (5-7 points)</option>
                 <option value="detailed">Detailed (Comprehensive)</option>
-                <option value="bullet_points">Bullet Points</option>
               </select>
+              {errors.summary_length && (
+                <p className="mt-1 text-sm text-red-600">{errors.summary_length.message}</p>
+              )}
             </div>
 
-            {/* Custom Prompt (Optional) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Custom Prompt (Optional)
-              </label>
-              <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Add specific instructions for the summary..."
-                rows={3}
-                {...register('custom_prompt')}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Example: "Focus on the main arguments" or "Include key statistics"
-              </p>
-            </div>
+            {/* Custom Prompt removed - not supported yet */}
 
             <div className="flex gap-3 pt-4">
               <Button

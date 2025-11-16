@@ -162,15 +162,17 @@ class DocumentExtractor:
     
     def extract_from_image(self, file_path: str) -> Optional[str]:
         """
-        Extract text from image using OCR
+        Returns special marker for image files to be processed by Gemini Vision
+        Instead of OCR, we'll pass the image directly to Gemini
         
         Args:
             file_path: Path to image file
             
         Returns:
-            Extracted text
+            Special marker with image path for Gemini Vision processing
         """
-        return self.ocr_image(file_path)
+        # Return special marker that will be detected by Gemini client
+        return f"__GEMINI_IMAGE__{file_path}__"
     
     def extract_text(self, file_path: str) -> Optional[str]:
         """
