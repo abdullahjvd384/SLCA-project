@@ -16,7 +16,7 @@ export default function SummariesPage() {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'brief' | 'detailed' | 'bullet_points'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'short' | 'medium' | 'detailed'>('all');
 
   useEffect(() => {
     fetchSummaries();
@@ -50,25 +50,26 @@ export default function SummariesPage() {
   }
 
   const filteredSummaries = summaries.filter((summary) => {
-    const matchesSearch = summary.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'all' || summary.summary_type === filterType;
+    const searchText = (summary.summary_text || '').toLowerCase();
+    const matchesSearch = searchText.includes(searchQuery.toLowerCase());
+    const matchesType = filterType === 'all' || summary.summary_length === filterType;
     return matchesSearch && matchesType;
   });
 
   const getSummaryTypeLabel = (type: string) => {
     const labels = {
-      brief: 'Brief',
+      short: 'Bullet Points',
+      medium: 'Medium',
       detailed: 'Detailed',
-      bullet_points: 'Bullet Points',
     };
     return labels[type as keyof typeof labels] || type;
   };
 
   const getSummaryTypeBadge = (type: string) => {
     const badges = {
-      brief: 'bg-blue-100 text-blue-800',
+      short: 'bg-blue-100 text-blue-800',
+      medium: 'bg-green-100 text-green-800',
       detailed: 'bg-purple-100 text-purple-800',
-      bullet_points: 'bg-green-100 text-green-800',
     };
     return badges[type as keyof typeof badges] || 'bg-gray-100 text-gray-800';
   };
@@ -115,9 +116,9 @@ export default function SummariesPage() {
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Types</option>
-          <option value="brief">Brief</option>
+          <option value="short">Bullet Points</option>
+          <option value="medium">Medium</option>
           <option value="detailed">Detailed</option>
-          <option value="bullet_points">Bullet Points</option>
         </select>
       </div>
 
@@ -154,28 +155,15 @@ export default function SummariesPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${getSummaryTypeBadge(
-                          summary.summary_type
+                          summary.summary_length
                         )}`}
                       >
-                        {getSummaryTypeLabel(summary.summary_type)}
+                        {getSummaryTypeLabel(summary.summary_length)}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-gray-500">
                         <Calendar className="h-3 w-3" />
-                        {formatDate(summary.created_at)}
+                        {formatDate(summary.generated_at)}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      {summary.source_type === 'document' ? (
-                        <>
-                          <FileText className="h-4 w-4" />
-                          <span>From Document</span>
-                        </>
-                      ) : (
-                        <>
-                          <LinkIcon className="h-4 w-4" />
-                          <span>From URL</span>
-                        </>
-                      )}
                     </div>
                   </div>
                   <Button
@@ -190,14 +178,7 @@ export default function SummariesPage() {
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none">
-                  {summary.summary_type === 'bullet_points' ? (
-                    <div
-                      className="text-gray-700 whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: summary.content.replace(/•/g, '•<br/>') }}
-                    />
-                  ) : (
-                    <p className="text-gray-700 whitespace-pre-wrap">{summary.content}</p>
-                  )}
+                  <p className="text-gray-700 whitespace-pre-wrap">{summary.summary_text || 'No content'}</p>
                 </div>
               </CardContent>
             </Card>
