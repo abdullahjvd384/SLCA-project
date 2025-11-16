@@ -6,7 +6,8 @@ import { CareerRecommendation } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import toast from 'react-hot-toast';
-import { Briefcase, TrendingUp, Award, Target, BookOpen, ArrowRight } from 'lucide-react';
+import { Briefcase, TrendingUp, Award, Target, BookOpen, ArrowRight, Sparkles, Zap, Star, Trophy } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function RecommendationsPage() {
   const [recommendations, setRecommendations] = useState<any>(null);
@@ -75,21 +76,45 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Career Recommendations</h1>
-        <p className="text-gray-600">
-          Personalized recommendations based on your resume and learning profile
-        </p>
-      </div>
+    <div className="space-y-8">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-8 text-white shadow-2xl"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-3">
+            <motion.div
+              whileHover={{ rotate: 360, scale: 1.1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Sparkles className="w-10 h-10 text-yellow-300" />
+            </motion.div>
+            <h1 className="text-4xl font-bold">Career Recommendations</h1>
+          </div>
+          <p className="text-blue-100 text-lg ml-13">
+            Personalized AI-powered recommendations based on your resume and learning profile
+          </p>
+        </div>
+      </motion.div>
 
       {/* User Learning Profile */}
       {recommendations.interest_profile && (
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-blue-600" />
-            Your Learning Profile
-          </h2>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <BookOpen className="w-7 h-7" />
+                Your Learning Profile
+              </h2>
+              <p className="text-blue-100 mt-1">Skills and domains from your study materials</p>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-blue-50/50 to-purple-50/50">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recommendations.interest_profile.primary_domains && recommendations.interest_profile.primary_domains.length > 0 && (
               <div>
@@ -128,50 +153,79 @@ export default function RecommendationsPage() {
               </div>
             )}
           </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Skills to Add */}
       {recommendations.recommendations.skills_to_add && recommendations.recommendations.skills_to_add.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Target className="w-6 h-6 text-green-600" />
-            Skills to Add to Your Resume
-          </h2>
-          <p className="text-gray-600 mb-4">Based on your learning profile, consider adding these skills:</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recommendations.recommendations.skills_to_add.map((skill: any, idx: number) => {
-              // Handle both object and string formats
-              const skillName = typeof skill === 'string' ? skill : (skill.skill || skill.name || 'Skill');
-              const reason = typeof skill === 'object' && skill.reason ? skill.reason : '';
-              const priority = typeof skill === 'object' && skill.priority ? skill.priority : 'medium';
-              
-              return (
-                <div key={idx} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-green-900 mb-1">{skillName}</h3>
-                  {reason && <p className="text-sm text-green-800 mb-2">{reason}</p>}
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                    priority === 'high' ? 'bg-red-100 text-red-700' :
-                    priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {priority} priority
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Target className="w-7 h-7" />
+                Skills to Add to Your Resume
+              </h2>
+              <p className="text-green-100 mt-1">Enhance your profile with these learned skills</p>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-green-50/50 to-emerald-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recommendations.recommendations.skills_to_add.map((skill: any, idx: number) => {
+                  const skillName = typeof skill === 'string' ? skill : (skill.skill || skill.name || 'Skill');
+                  const reason = typeof skill === 'object' && skill.reason ? skill.reason : '';
+                  const priority = typeof skill === 'object' && skill.priority ? skill.priority : 'medium';
+                  
+                  return (
+                    <motion.div
+                      key={idx}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      className="bg-white border-2 border-green-200 rounded-xl p-5 shadow-lg hover:shadow-xl transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-bold text-green-900 text-lg flex items-center gap-2">
+                          <Star className="w-5 h-5 text-green-600" />
+                          {skillName}
+                        </h3>
+                      </div>
+                      {reason && <p className="text-sm text-green-700 mb-3 leading-relaxed">{reason}</p>}
+                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold ${
+                        priority === 'high' ? 'bg-red-500 text-white' :
+                        priority === 'medium' ? 'bg-yellow-500 text-white' :
+                        'bg-blue-500 text-white'
+                      }`}>
+                        <Zap className="w-3 h-3" />
+                        {priority} priority
+                      </span>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Projects to Add */}
       {recommendations.recommendations.projects_to_add && recommendations.recommendations.projects_to_add.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-blue-600" />
-            Recommended Projects to Showcase
-          </h2>
-          <div className="space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Briefcase className="w-7 h-7" />
+                Recommended Projects to Showcase
+              </h2>
+              <p className="text-blue-100 mt-1">Build impressive projects to demonstrate your skills</p>
+            </div>
+            <div className="p-6 space-y-4 bg-gradient-to-br from-blue-50/50 to-cyan-50/50">
             {recommendations.recommendations.projects_to_add.map((project: any, idx: number) => {
               const projectIdea = typeof project === 'string' ? project : (project.project_idea || project.title || project.name || 'Project');
               const description = typeof project === 'object' && project.description ? project.description : '';
@@ -179,15 +233,22 @@ export default function RecommendationsPage() {
               const estimatedTime = typeof project === 'object' && project.estimated_time ? project.estimated_time : null;
               
               return (
-                <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">{projectIdea}</h3>
-                  {description && <p className="text-sm text-blue-800 mb-3">{description}</p>}
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  className="bg-white border-2 border-blue-200 rounded-xl p-5 shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <h3 className="font-bold text-blue-900 mb-2 text-lg flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-blue-600" />
+                    {projectIdea}
+                  </h3>
+                  {description && <p className="text-sm text-blue-800 mb-3 leading-relaxed">{description}</p>}
                   {technologies.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-blue-900 mb-2">Technologies:</p>
+                    <div className="mb-3">
+                      <p className="text-xs font-bold text-blue-900 mb-2">Technologies:</p>
                       <div className="flex flex-wrap gap-2">
                         {technologies.map((tech: any, techIdx: number) => (
-                          <span key={techIdx} className="px-2 py-1 bg-blue-200 text-blue-900 rounded text-xs">
+                          <span key={techIdx} className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full text-xs font-medium shadow-sm">
                             {typeof tech === 'string' ? tech : tech.name || 'Tech'}
                           </span>
                         ))}
@@ -195,23 +256,34 @@ export default function RecommendationsPage() {
                     </div>
                   )}
                   {estimatedTime && (
-                    <p className="text-xs text-blue-700 mt-2">Estimated time: {estimatedTime}</p>
+                    <p className="text-xs text-blue-700 font-medium flex items-center gap-1">
+                      <span>⏱️ Estimated time: {estimatedTime}</span>
+                    </p>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Certifications to Pursue */}
       {recommendations.recommendations.certifications_to_pursue && recommendations.recommendations.certifications_to_pursue.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Award className="w-6 h-6 text-purple-600" />
-            Recommended Certifications
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Award className="w-7 h-7" />
+                Recommended Certifications
+              </h2>
+              <p className="text-purple-100 mt-1">Boost your credentials with industry-recognized certifications</p>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gradient-to-br from-purple-50/50 to-pink-50/50">
             {recommendations.recommendations.certifications_to_pursue.map((cert: any, idx: number) => {
               const certName = typeof cert === 'string' ? cert : (cert.certification_name || cert.name || 'Certification');
               const provider = typeof cert === 'object' && cert.provider ? cert.provider : '';
@@ -221,42 +293,60 @@ export default function RecommendationsPage() {
               const costEstimate = typeof cert === 'object' && cert.cost_estimate ? cert.cost_estimate : null;
               
               return (
-                <div key={idx} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-purple-900 mb-1">{certName}</h3>
-                  {provider && <p className="text-sm text-purple-800 mb-2">{provider}</p>}
-                  {reason && <p className="text-xs text-purple-700 mb-3">{reason}</p>}
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.03, y: -4 }}
+                  className="bg-white border-2 border-purple-200 rounded-xl p-5 shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <Award className="w-6 h-6 text-purple-600 flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-purple-900 text-lg">{certName}</h3>
+                      {provider && <p className="text-sm text-purple-700 font-medium mt-1">{provider}</p>}
+                    </div>
+                  </div>
+                  {reason && <p className="text-xs text-purple-700 mb-3 leading-relaxed">{reason}</p>}
                   <div className="flex flex-wrap gap-2 text-xs">
                     {duration && (
-                      <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded">
-                        Duration: {duration}
+                      <span className="px-3 py-1.5 bg-purple-500 text-white rounded-full font-medium">
+                        📅 {duration}
                       </span>
                     )}
                     {difficulty && (
-                      <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded">
+                      <span className="px-3 py-1.5 bg-pink-500 text-white rounded-full font-medium">
                         {difficulty}
                       </span>
                     )}
                     {costEstimate && (
-                      <span className="px-2 py-1 bg-purple-200 text-purple-900 rounded">
-                        {costEstimate}
+                      <span className="px-3 py-1.5 bg-purple-600 text-white rounded-full font-medium">
+                        💰 {costEstimate}
                       </span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Job Roles Suited */}
       {recommendations.recommendations.job_roles_suited && recommendations.recommendations.job_roles_suited.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-orange-600" />
-            Job Roles You're Suited For
-          </h2>
-          <div className="space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-orange-500 to-red-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Briefcase className="w-7 h-7" />
+                Job Roles You're Suited For
+              </h2>
+              <p className="text-orange-100 mt-1">Career paths matching your skills and interests</p>
+            </div>
+            <div className="p-6 space-y-4 bg-gradient-to-br from-orange-50/50 to-red-50/50">
             {recommendations.recommendations.job_roles_suited.map((role: any, idx: number) => {
               const roleTitle = typeof role === 'string' ? role : (role.role_title || role.title || role.name || 'Job Role');
               const description = typeof role === 'object' && role.description ? role.description : '';
@@ -265,22 +355,46 @@ export default function RecommendationsPage() {
               const salaryRange = typeof role === 'object' && role.salary_range ? role.salary_range : null;
               
               return (
-                <div key={idx} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-orange-900 text-lg">{roleTitle}</h3>
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  className="bg-white border-2 border-orange-200 rounded-xl p-6 shadow-lg hover:shadow-2xl transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-bold text-orange-900 text-xl flex items-center gap-2">
+                      <Briefcase className="w-6 h-6 text-orange-600" />
+                      {roleTitle}
+                    </h3>
                     {matchScore && (
-                      <span className="px-3 py-1 bg-orange-200 text-orange-900 rounded-full text-sm font-semibold">
-                        {matchScore}% Match
-                      </span>
+                      <div className="text-center">
+                        <div className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full text-sm font-bold shadow-lg">
+                          {matchScore}% Match
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {description && <p className="text-sm text-orange-800 mb-3">{description}</p>}
+                  {matchScore && (
+                    <div className="mb-4">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${matchScore}%` }}
+                          transition={{ duration: 1, delay: 0.5 }}
+                          className="h-full bg-gradient-to-r from-orange-500 to-red-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {description && <p className="text-sm text-orange-800 mb-4 leading-relaxed">{description}</p>}
                   {requiredSkills.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-xs font-semibold text-orange-900 mb-2">Required Skills:</p>
+                    <div className="mb-3">
+                      <p className="text-xs font-bold text-orange-900 mb-2 flex items-center gap-1">
+                        <Star className="w-4 h-4" />
+                        Required Skills:
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {requiredSkills.map((skill: any, skillIdx: number) => (
-                          <span key={skillIdx} className="px-2 py-1 bg-orange-200 text-orange-900 rounded text-xs">
+                          <span key={skillIdx} className="px-3 py-1 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-full text-xs font-medium shadow-sm">
                             {typeof skill === 'string' ? skill : skill.name || 'Skill'}
                           </span>
                         ))}
@@ -288,46 +402,74 @@ export default function RecommendationsPage() {
                     </div>
                   )}
                   {salaryRange && (
-                    <p className="text-xs text-orange-700">Salary Range: {salaryRange}</p>
+                    <p className="text-sm text-orange-700 font-bold flex items-center gap-1">
+                      💵 Salary Range: {salaryRange}
+                    </p>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Immediate Actions */}
       {recommendations.recommendations.immediate_actions && recommendations.recommendations.immediate_actions.length > 0 && (
-        <Card className="p-6 bg-gradient-to-r from-red-50 to-orange-50">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Target className="w-6 h-6 text-red-600" />
-            Immediate Actions
-          </h2>
-          <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-pink-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Target className="w-7 h-7" />
+                Immediate Actions
+              </h2>
+              <p className="text-red-100 mt-1">Start with these high-priority tasks today</p>
+            </div>
+            <div className="p-6 space-y-3 bg-gradient-to-br from-red-50/50 to-pink-50/50">
             {recommendations.recommendations.immediate_actions.map((action: any, idx: number) => {
               const actionText = typeof action === 'string' ? action : action.action || action.step || JSON.stringify(action);
               return (
-                <div key={idx} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-red-200">
-                  <span className="flex items-center justify-center w-6 h-6 bg-red-600 text-white rounded-full text-sm font-bold flex-shrink-0">
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  className="flex items-start gap-4 bg-white rounded-xl p-4 border-2 border-red-200 shadow-md hover:shadow-lg transition-all"
+                >
+                  <motion.span
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                    className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-red-600 to-pink-600 text-white rounded-full text-sm font-bold flex-shrink-0 shadow-lg"
+                  >
                     {idx + 1}
-                  </span>
-                  <p className="text-gray-700 pt-0.5">{actionText}</p>
-                </div>
+                  </motion.span>
+                  <p className="text-gray-800 pt-1 leading-relaxed font-medium">{actionText}</p>
+                </motion.div>
               );
             })}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
 
       {/* Learning Path */}
       {recommendations.recommendations.learning_path && recommendations.recommendations.learning_path.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-indigo-600" />
-            Your Learning Path
-          </h2>
-          <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <TrendingUp className="w-7 h-7" />
+                Your Learning Path
+              </h2>
+              <p className="text-indigo-100 mt-1">Step-by-step roadmap to achieve your goals</p>
+            </div>
+            <div className="p-6 space-y-4 bg-gradient-to-br from-indigo-50/50 to-purple-50/50">
             {recommendations.recommendations.learning_path.map((step: any, idx: number) => {
               // Handle both string and object formats
               const stepText = typeof step === 'string' ? step : step.step || step.action || JSON.stringify(step);
@@ -335,21 +477,37 @@ export default function RecommendationsPage() {
               const resources = typeof step === 'object' && step.resources ? step.resources : null;
               
               return (
-                <div key={idx} className="flex items-start gap-3">
-                  <span className="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full text-sm font-bold flex-shrink-0">
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.1 + 0.9 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-start gap-4"
+                >
+                  <motion.span
+                    whileHover={{ scale: 1.2, rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                    className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-full text-base font-bold flex-shrink-0 shadow-lg"
+                  >
                     {idx + 1}
-                  </span>
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex-1">
-                    <p className="text-indigo-900 font-medium">{stepText}</p>
+                  </motion.span>
+                  <div className="bg-white border-2 border-indigo-200 rounded-xl p-5 flex-1 shadow-md hover:shadow-lg transition-shadow">
+                    <p className="text-indigo-900 font-semibold text-base leading-relaxed">{stepText}</p>
                     {timeframe && (
-                      <p className="text-sm text-indigo-700 mt-1">⏱️ {timeframe}</p>
+                      <p className="text-sm text-indigo-700 mt-2 flex items-center gap-1 font-medium">
+                        ⏱️ {timeframe}
+                      </p>
                     )}
                     {resources && Array.isArray(resources) && resources.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs font-semibold text-indigo-900 mb-1">Resources:</p>
-                        <div className="flex flex-wrap gap-1">
+                      <div className="mt-3">
+                        <p className="text-xs font-bold text-indigo-900 mb-2 flex items-center gap-1">
+                          <BookOpen className="w-4 h-4" />
+                          Resources:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
                           {resources.map((resource: any, rIdx: number) => (
-                            <span key={rIdx} className="text-xs bg-indigo-200 text-indigo-900 px-2 py-1 rounded">
+                            <span key={rIdx} className="text-xs bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1.5 rounded-full font-medium shadow-sm">
                               {typeof resource === 'string' ? resource : resource.name || 'Resource'}
                             </span>
                           ))}
@@ -357,11 +515,12 @@ export default function RecommendationsPage() {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
