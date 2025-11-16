@@ -155,8 +155,8 @@ export default function QuizzesPage() {
               <CardHeader>
                 <div className="flex items-start justify-between mb-2">
                   <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyBadgeClass(quiz.difficulty)}`}>
-                    {quiz.difficulty}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyBadgeClass(quiz.difficulty || quiz.difficulty_level || 'medium')}`}>
+                    {quiz.difficulty || quiz.difficulty_level || 'Medium'}
                   </span>
                 </div>
                 <CardDescription className="flex items-center gap-2">
@@ -168,11 +168,11 @@ export default function QuizzesPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Topic:</span>
-                    <span className="font-medium">{quiz.topic}</span>
+                    <span className="font-medium">{quiz.topic || quiz.title || 'General'}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Questions:</span>
-                    <span className="font-medium">{quiz.questions.length}</span>
+                    <span className="font-medium">{quiz.questions?.length || 0}</span>
                   </div>
                   <Link href={`/dashboard/quizzes/${quiz.id}`} className="block pt-2">
                     <Button variant="primary" size="sm" className="w-full">

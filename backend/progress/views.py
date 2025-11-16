@@ -8,7 +8,8 @@ from config.database import get_db
 from progress.models import UserProgress, ActivityLog
 from progress.schemas import (
     UserProgressResponse, ActivityLogResponse, 
-    DashboardStats, PerformanceMetrics
+    DashboardStats, PerformanceMetrics,
+    AIInsight, DetailedAnalytics
 )
 from users.auth import get_current_user
 from users.models import User
@@ -144,3 +145,39 @@ def refresh_progress(
     """
     progress_analytics.update_progress(db, current_user.id)
     return {"message": "Progress statistics updated successfully"}
+
+@router.get("/analytics/detailed", response_model=DetailedAnalytics)
+def get_detailed_analytics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive analytics for progress dashboard
+    
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Detailed analytics including performance trends, activity, and insights
+    """
+    analytics = progress_analytics.get_detailed_analytics(db, current_user.id)
+    return analytics
+
+@router.get("/insights/ai", response_model=List[AIInsight])
+def get_ai_insights(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get AI-powered personalized learning insights
+    
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        List of AI-generated insights and recommendations
+    """
+    insights = progress_analytics.generate_ai_insights(db, current_user.id)
+    return insights

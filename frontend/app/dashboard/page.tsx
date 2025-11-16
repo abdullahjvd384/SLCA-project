@@ -75,7 +75,7 @@ export default function DashboardPage() {
     },
     {
       name: 'Quizzes',
-      value: progress?.total_quizzes || 0,
+      value: progress?.total_quizzes_generated || 0,
       icon: ClipboardCheck,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100',
@@ -174,24 +174,29 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <getActivityIcon type={activity.activity_type} />
+                {activities.map((activity) => {
+                  const description = getActivityDescription(activity);
+                  const Icon = getActivityIconComponent(activity.activity_type);
+                  
+                  return (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 font-medium">
+                          {description}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatRelativeTime(activity.timestamp)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900 font-medium">
-                        {activity.description}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatRelativeTime(activity.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -237,17 +242,45 @@ export default function DashboardPage() {
   );
 }
 
-function getActivityIcon({ type }: { type: string }) {
-  switch (type) {
-    case 'document_upload':
-      return <FileText className="h-4 w-4 text-blue-600" />;
-    case 'quiz_taken':
-      return <ClipboardCheck className="h-4 w-4 text-orange-600" />;
-    case 'note_created':
-      return <BookOpen className="h-4 w-4 text-green-600" />;
-    case 'summary_generated':
-      return <Brain className="h-4 w-4 text-purple-600" />;
+function getActivityDescription(activity: ActivityLog): string {
+  const details = activity.activity_details || {};
+  
+  switch (activity.activity_type) {
+    case 'upload':
+      return `Uploaded document: ${details.filename || 'New document'}`;
+    case 'note':
+      return `Created note: ${details.title || 'New note'}`;
+    case 'summary':
+      return `Generated summary for ${details.document_title || 'document'}`;
+    case 'quiz':
+      return `Generated quiz: ${details.title || details.quiz_title || 'New quiz'}`;
+    case 'quiz_attempt':
+      const score = details.score !== undefined ? ` (Score: ${details.score}%)` : '';
+      return `Completed quiz${score}`;
+    case 'resume_uploaded':
+      return `Uploaded resume: ${details.filename || 'Resume'}`;
+    case 'resume_analyzed':
+      return `Analyzed resume with ${details.ats_score || 0}% ATS score`;
     default:
-      return <FileText className="h-4 w-4 text-gray-600" />;
+      return 'Activity recorded';
+  }
+}
+
+function getActivityIconComponent(type: string) {
+  switch (type) {
+    case 'upload':
+      return FileText;
+    case 'quiz':
+    case 'quiz_attempt':
+      return ClipboardCheck;
+    case 'note':
+      return BookOpen;
+    case 'summary':
+      return Brain;
+    case 'resume_uploaded':
+    case 'resume_analyzed':
+      return TrendingUp;
+    default:
+      return FileText;
   }
 }

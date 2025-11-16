@@ -56,7 +56,8 @@ class QuizAttempt(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     score = Column(Float)
     total_questions = Column(Integer)
-    answers = Column(JSONB)  # User's answers
+    correct_answers = Column(Integer)  # Number of correct answers
+    answers = Column(JSONB)  # User's answers with evaluation details
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True))
     time_taken = Column(Integer)  # in seconds

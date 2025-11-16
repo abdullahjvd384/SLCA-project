@@ -15,14 +15,15 @@ from documents.upload_handler import upload_handler
 from users.auth import get_current_user
 from users.models import User
 from core.rag_pipeline import rag_pipeline
+from documents.topic_extractor import topic_extractor
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 def process_document_background(document_id: str, db: Session):
     """
-    Background task to process document - LIGHTWEIGHT VERSION
+    Background task to process document - Enhanced with topic extraction
     For URLs (YouTube/Article): Skip extraction, mark as completed immediately
-    For Files: Only index to vector store if needed
+    For Files: Extract topics, index to vector store
     
     Args:
         document_id: Document ID
@@ -51,36 +52,60 @@ def process_document_background(document_id: str, db: Session):
         doc.processing_status = ProcessingStatus.PROCESSING
         db.commit()
         
-        # Optional: Index file document to vector store (for semantic search)
-        # This is also optional - can be done on-demand
+        # Extract content for topic analysis
+        extracted_text = ""
         try:
             result = rag_pipeline.process_document(doc.file_path)
             
             if result.get("success"):
-                # Only store vector DB reference and basic metadata
+                # Store vector DB reference
                 doc.vector_db_reference_id = result.get("doc_id")
-                doc.processing_status = ProcessingStatus.COMPLETED
+                extracted_text = result.get("text", "")
+                
+                # Extract topics and domains using AI
+                logger.info(f"Extracting topics for document {document_id}")
+                topic_data = topic_extractor.extract_topics_and_domains(
+                    extracted_text,
+                    doc.original_filename
+                )
+                
+                # Store topic data in document
+                doc.topics = topic_data.get('topics', [])
+                doc.domains = topic_data.get('domains', [])
+                doc.keywords = topic_data.get('keywords', [])
+                doc.subject_area = topic_data.get('subject_area', 'General')
+                doc.difficulty_level = topic_data.get('difficulty_level', 'intermediate')
+                
+                # Store comprehensive metadata
                 doc.doc_metadata = {
                     "indexed": True,
                     "chunk_count": result.get("chunk_count", 0),
-                    "indexed_at": str(doc.upload_date)
+                    "indexed_at": str(doc.upload_date),
+                    "technical_skills": topic_data.get('technical_skills', []),
+                    "concepts": topic_data.get('concepts', []),
+                    "technologies": topic_data.get('technologies', []),
+                    "programming_languages": topic_data.get('programming_languages', []),
+                    "extraction_confidence": topic_data.get('extraction_confidence', 'medium'),
+                    "extraction_method": topic_data.get('extraction_method', 'ai')
                 }
-                logger.info(f"File document {document_id} indexed successfully")
+                
+                doc.processing_status = ProcessingStatus.COMPLETED
+                logger.info(f"Document {document_id} processed successfully with topics: {doc.topics[:3]}")
             else:
-                # Even if indexing fails, mark as completed since file is uploaded
+                # If extraction fails, mark as completed but without topics
                 doc.processing_status = ProcessingStatus.COMPLETED
                 doc.doc_metadata = {
-                    "indexed": False, 
-                    "note": "File uploaded successfully, indexing skipped"
+                    "indexed": False,
+                    "note": "File uploaded successfully, content extraction failed"
                 }
-                logger.warning(f"Document {document_id} indexing skipped: {result.get('error')}")
-        except Exception as index_error:
-            logger.warning(f"Vector indexing failed for {document_id}: {index_error}")
-            # Still mark as completed - file is uploaded and accessible
+                logger.warning(f"Document {document_id} extraction failed: {result.get('error')}")
+        except Exception as extract_error:
+            logger.error(f"Topic extraction failed for {document_id}: {extract_error}")
+            # Still mark as completed - file is uploaded
             doc.processing_status = ProcessingStatus.COMPLETED
             doc.doc_metadata = {
-                "indexed": False, 
-                "note": "File uploaded successfully, indexing failed but content is accessible"
+                "indexed": False,
+                "note": "File uploaded successfully, topic extraction failed"
             }
         
         db.commit()
@@ -424,3 +449,62 @@ def get_document_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Content extraction failed: {str(e)}"
         )
+
+@router.get("/interest-profile")
+def get_user_interest_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get aggregated interest profile from all user's documents
+    Returns topics, domains, skills for career recommendations
+    
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Aggregated interest profile
+    """
+    from utils.logger import logger
+    
+    # Get all user documents with topic data
+    documents = db.query(Document).filter(
+        Document.user_id == current_user.id,
+        Document.processing_status == ProcessingStatus.COMPLETED
+    ).all()
+    
+    if not documents:
+        return {
+            "primary_domains": [],
+            "all_domains": [],
+            "primary_topics": [],
+            "all_topics": [],
+            "top_skills": [],
+            "all_skills": [],
+            "technologies": [],
+            "programming_languages": [],
+            "keywords": [],
+            "total_documents": 0,
+            "message": "No documents uploaded yet"
+        }
+    
+    # Extract topic data from documents
+    documents_data = []
+    for doc in documents:
+        doc_data = {
+            'topics': doc.topics or [],
+            'domains': doc.domains or [],
+            'keywords': doc.keywords or [],
+            'technical_skills': doc.doc_metadata.get('technical_skills', []) if doc.doc_metadata else [],
+            'technologies': doc.doc_metadata.get('technologies', []) if doc.doc_metadata else [],
+            'programming_languages': doc.doc_metadata.get('programming_languages', []) if doc.doc_metadata else []
+        }
+        documents_data.append(doc_data)
+    
+    # Aggregate interests
+    logger.info(f"Aggregating interests from {len(documents_data)} documents for user {current_user.email}")
+    interest_profile = topic_extractor.aggregate_user_interests(documents_data)
+    
+    return interest_profile
+

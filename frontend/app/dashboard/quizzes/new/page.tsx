@@ -61,14 +61,22 @@ export default function NewQuizPage() {
   const onSubmit = async (data: GenerateQuizFormData) => {
     try {
       setIsLoading(true);
+      console.log('Quiz form data:', data);
+      console.log('Selected types:', selectedTypes);
+      
       const quiz = await api.generateQuiz({
         ...data,
         question_types: selectedTypes,
       });
+      
+      console.log('Quiz generated:', quiz);
       toast.success('Quiz generated successfully!');
       router.push(`/dashboard/quizzes/${quiz.id}`);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to generate quiz');
+      console.error('Quiz generation error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate quiz';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -104,9 +112,7 @@ export default function NewQuizPage() {
               </label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                {...register('document_id', {
-                  setValueAs: (v) => Number(v),
-                })}
+                {...register('document_id')}
               >
                 <option value="">Choose a document</option>
                 {documents.map((doc) => (

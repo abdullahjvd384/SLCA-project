@@ -186,7 +186,7 @@ def get_summaries_by_document(
 
 @router.delete("/{summary_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_summary(
-    summary_id: int,
+    summary_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -194,21 +194,41 @@ def delete_summary(
     Delete a summary
     
     Args:
-        summary_id: Summary ID
+        summary_id: Summary ID (UUID string)
         current_user: Current authenticated user
         db: Database session
     """
-    summary = db.query(Summary).filter(
-        Summary.id == summary_id,
-        Summary.user_id == current_user.id
-    ).first()
-    
-    if not summary:
+    try:
+        # Validate UUID format
+        import uuid
+        try:
+            uuid_obj = uuid.UUID(summary_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid summary ID format"
+            )
+        
+        summary = db.query(Summary).filter(
+            Summary.id == uuid_obj,
+            Summary.user_id == current_user.id
+        ).first()
+        
+        if not summary:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Summary not found"
+            )
+        
+        db.delete(summary)
+        db.commit()
+        logger.info(f"Summary {summary_id} deleted successfully by user {current_user.email}")
+        return {"message": "Summary deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting summary {summary_id}: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Summary not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete summary: {str(e)}"
         )
-    
-    db.delete(summary)
-    db.commit()
-    return {"message": "Summary deleted successfully"}

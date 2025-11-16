@@ -41,6 +41,14 @@ class Document(Base):
     vector_db_reference_id = Column(String(255))
     doc_metadata = Column(JSONB)  # Renamed from metadata to avoid SQLAlchemy conflict
     extracted_text = Column(Text)  # Store extracted content
+    
+    # Topic and domain tracking for career recommendations
+    topics = Column(JSONB)  # List of extracted topics/subjects
+    domains = Column(JSONB)  # List of domains/fields (e.g., AI, Web Dev, Data Science)
+    keywords = Column(JSONB)  # Important keywords and technical terms
+    difficulty_level = Column(String(50))  # beginner, intermediate, advanced
+    subject_area = Column(String(200))  # Primary subject (e.g., Computer Science, Mathematics)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     def __repr__(self):

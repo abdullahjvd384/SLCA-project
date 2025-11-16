@@ -1,7 +1,7 @@
 """
 Quiz schemas for request/response validation
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -49,6 +49,19 @@ class QuizResponse(BaseModel):
     created_at: datetime
     questions: List[QuestionResponse] = []
     
+    # Computed fields for frontend compatibility
+    @computed_field
+    @property
+    def difficulty(self) -> str:
+        """Return difficulty as string for frontend"""
+        return self.difficulty_level.value if self.difficulty_level else 'medium'
+    
+    @computed_field
+    @property
+    def topic(self) -> str:
+        """Return title as topic for frontend"""
+        return self.title or 'General'
+    
     class Config:
         from_attributes = True
 
@@ -85,3 +98,17 @@ class QuizResultResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class TopicPerformance(BaseModel):
+    """Schema for topic performance"""
+    topic: str
+    count: int
+    average_score: float
+
+class QuizAnalytics(BaseModel):
+    """Schema for quiz analytics"""
+    total_quizzes: int
+    total_attempts: int
+    average_score: float
+    best_score: float
+    topics: List[TopicPerformance] = []

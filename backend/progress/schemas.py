@@ -56,3 +56,45 @@ class PerformanceMetrics(BaseModel):
     improvement_rate: float
     strong_topics: List[str]
     weak_topics: List[str]
+
+class AIInsight(BaseModel):
+    """Schema for AI-powered insights"""
+    category: str
+    message: str
+    priority: str  # 'high', 'medium', 'low'
+    recommendation: str
+    icon: str  # Icon identifier for frontend
+
+class TopicPerformance(BaseModel):
+    """Schema for topic-specific performance"""
+    topic: str
+    avg_score: float
+    attempts: int
+    last_attempt: datetime
+    trend: str  # 'improving', 'declining', 'stable'
+
+class ActivitySummary(BaseModel):
+    """Schema for daily activity summary"""
+    date: str
+    documents: int
+    notes: int
+    quizzes: int
+    study_time: int  # minutes
+
+class DetailedAnalytics(BaseModel):
+    """Schema for comprehensive analytics"""
+    total_documents: int
+    total_notes: int
+    total_summaries: int
+    total_quizzes: int
+    total_quiz_attempts: int
+    average_quiz_score: float
+    total_study_time: int  # in minutes
+    documents_by_type: Dict[str, int]
+    quiz_performance_by_topic: List[TopicPerformance]
+    recent_activity: List[ActivitySummary]
+    study_streak: int
+    improvement_rate: float
+    best_score: float
+    consistency_score: float  # 0-100, based on regular activity
+    learning_velocity: float  # content consumed per week

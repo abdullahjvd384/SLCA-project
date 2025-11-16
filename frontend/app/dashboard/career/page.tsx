@@ -50,21 +50,31 @@ export default function CareerPage() {
       return;
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
       return;
     }
 
     try {
       setUploading(true);
-      const data = await api.analyzeResume(file);
-      setAnalysis(data);
-      toast.success('Resume analyzed successfully!');
+      toast.loading('Uploading and analyzing resume...', { id: 'resume-upload' });
+      
+      // Upload and analyze in one call
+      const { resume, analysis: analysisData } = await api.uploadAndAnalyzeResume(file);
+      
+      setAnalysis(analysisData);
+      toast.success('Resume analyzed successfully!', { id: 'resume-upload' });
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to analyze resume');
+      console.error('Resume analysis error:', error);
+      toast.error(
+        error.response?.data?.detail || 'Failed to analyze resume. Please try again.',
+        { id: 'resume-upload' }
+      );
     } finally {
       setUploading(false);
+      // Reset input so same file can be uploaded again
+      e.target.value = '';
     }
   };
 
@@ -118,7 +128,7 @@ export default function CareerPage() {
           </div>
 
           <div className="text-sm text-gray-500">
-            Supported formats: PDF, DOC, DOCX (Max 5MB)
+            Supported formats: PDF, DOC, DOCX (Max 10MB)
           </div>
         </Card>
 
@@ -320,19 +330,12 @@ export default function CareerPage() {
       )}
 
       {/* Actions */}
-      <div className="flex gap-4">
+      <div>
         <Button
           onClick={() => router.push('/dashboard/career/recommendations')}
-          className="flex-1"
+          className="w-full"
         >
           View All Recommendations
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/dashboard/career/interview-prep')}
-          className="flex-1"
-        >
-          Practice Interview Questions
         </Button>
       </div>
     </div>

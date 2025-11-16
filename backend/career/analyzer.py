@@ -258,5 +258,195 @@ Provide 3-5 specific recommendations for improving the match.
             'missing_skills': list(missing_skills),
             'recommendations': recommendations
         }
+    
+    def analyze_with_interest_profile(
+        self,
+        parsed_content: Dict[str, Any],
+        interest_profile: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Enhanced resume analysis using user's document interest profile
+        Provides personalized recommendations based on learning history
+        
+        Args:
+            parsed_content: Parsed resume data
+            interest_profile: User's aggregated interests from documents
+            
+        Returns:
+            Comprehensive analysis with interest-based recommendations
+        """
+        resume_skills = parsed_content.get('skills', [])
+        resume_text = parsed_content.get('raw_text', '')
+        
+        # Extract data from interest profile
+        user_domains = interest_profile.get('primary_domains', [])
+        user_topics = interest_profile.get('primary_topics', [])
+        user_skills = interest_profile.get('top_skills', [])
+        user_technologies = interest_profile.get('technologies', [])
+        user_languages = interest_profile.get('programming_languages', [])
+        
+        # Generate comprehensive AI analysis
+        prompt = f"""
+Analyze this resume considering the user's learning profile from their study documents:
+
+RESUME CONTENT:
+{resume_text[:2000]}
+
+RESUME SKILLS:
+{', '.join(resume_skills)}
+
+USER'S LEARNING PROFILE (from uploaded study materials):
+- Primary Domains: {', '.join(user_domains[:5])}
+- Topics Studied: {', '.join(user_topics[:10])}
+- Technical Skills Learned: {', '.join(user_skills[:10])}
+- Technologies: {', '.join(user_technologies[:10])}
+- Programming Languages: {', '.join(user_languages)}
+
+Provide a comprehensive analysis in JSON format:
+{{
+    "resume_gaps": {{
+        "missing_learned_skills": ["skills from learning profile not in resume"],
+        "underrepresented_domains": ["domains studied but not highlighted"],
+        "technologies_to_add": ["technologies learned but not mentioned"]
+    }},
+    "recommendations": {{
+        "skills_to_add": ["specific skills from learning to add"],
+        "projects_to_showcase": ["project ideas based on learned topics"],
+        "certifications_to_pursue": ["certifications aligned with domains"],
+        "keywords_to_include": ["ATS keywords based on learning"],
+        "sections_to_improve": ["resume sections needing work"]
+    }},
+    "career_alignment": {{
+        "suitable_roles": ["job roles matching learning profile"],
+        "industries": ["industries aligned with domains"],
+        "career_path_suggestions": ["career progression based on skills"]
+    }},
+    "actionable_steps": {{
+        "immediate": ["actions to take right now"],
+        "short_term": ["actions for next 1-3 months"],
+        "long_term": ["actions for 3-12 months"]
+    }},
+    "strengths": ["resume strengths considering learning"],
+    "improvement_priority": "high/medium/low"
+}}
+
+Focus on:
+1. Skills learned but missing from resume
+2. How to better showcase documented knowledge
+3. Specific projects based on study materials
+4. Career paths aligned with learning domains
+5. Certifications that validate learned skills
+
+Return ONLY the JSON object.
+"""
+        
+        try:
+            response = self.gemini.generate_text(prompt, temperature=0.3)
+            analysis = self._parse_analysis(response)
+            
+            # Add metadata
+            analysis['analysis_type'] = 'interest_profile_enhanced'
+            analysis['domains_analyzed'] = user_domains[:5]
+            analysis['topics_analyzed'] = user_topics[:10]
+            
+            return analysis
+            
+        except Exception as e:
+            # Fallback analysis
+            return self._fallback_interest_analysis(
+                resume_skills,
+                user_domains,
+                user_topics,
+                user_skills,
+                user_technologies,
+                user_languages
+            )
+    
+    def _fallback_interest_analysis(
+        self,
+        resume_skills: List[str],
+        user_domains: List[str],
+        user_topics: List[str],
+        user_skills: List[str],
+        user_technologies: List[str],
+        user_languages: List[str]
+    ) -> Dict[str, Any]:
+        """Fallback analysis when AI fails"""
+        resume_skills_lower = set([s.lower() for s in resume_skills])
+        user_skills_lower = set([s.lower() for s in user_skills])
+        user_tech_lower = set([t.lower() for t in user_technologies])
+        
+        # Find gaps
+        missing_skills = [s for s in user_skills if s.lower() not in resume_skills_lower]
+        missing_tech = [t for t in user_technologies if t.lower() not in resume_skills_lower]
+        
+        return {
+            'resume_gaps': {
+                'missing_learned_skills': missing_skills[:10],
+                'underrepresented_domains': user_domains[:5],
+                'technologies_to_add': missing_tech[:10]
+            },
+            'recommendations': {
+                'skills_to_add': missing_skills[:5],
+                'projects_to_showcase': [
+                    f"Build a project demonstrating {topic}" for topic in user_topics[:3]
+                ],
+                'certifications_to_pursue': [
+                    f"{domain} Certification" for domain in user_domains[:3]
+                ],
+                'keywords_to_include': user_skills[:10] + user_technologies[:10],
+                'sections_to_improve': ['Skills', 'Projects', 'Technical Summary']
+            },
+            'career_alignment': {
+                'suitable_roles': self._suggest_roles_from_domains(user_domains),
+                'industries': user_domains[:5],
+                'career_path_suggestions': [
+                    f"Specialize in {domain}" for domain in user_domains[:3]
+                ]
+            },
+            'actionable_steps': {
+                'immediate': [
+                    'Update resume with learned skills',
+                    'Add relevant keywords',
+                    'Create projects portfolio'
+                ],
+                'short_term': [
+                    'Pursue relevant certifications',
+                    'Build 2-3 portfolio projects',
+                    'Network in target industries'
+                ],
+                'long_term': [
+                    'Gain practical experience',
+                    'Contribute to open source',
+                    'Build expertise in chosen domain'
+                ]
+            },
+            'strengths': [
+                f"Learning {domain}" for domain in user_domains[:3]
+            ],
+            'improvement_priority': 'high' if missing_skills else 'medium',
+            'analysis_type': 'fallback_interest_profile'
+        }
+    
+    def _suggest_roles_from_domains(self, domains: List[str]) -> List[str]:
+        """Suggest job roles based on domains"""
+        domain_role_map = {
+            'Artificial Intelligence': ['ML Engineer', 'AI Researcher', 'Data Scientist'],
+            'Web Development': ['Full Stack Developer', 'Frontend Developer', 'Backend Developer'],
+            'Data Science': ['Data Analyst', 'Data Scientist', 'Business Intelligence Analyst'],
+            'Cloud Computing': ['Cloud Engineer', 'DevOps Engineer', 'Cloud Architect'],
+            'Cybersecurity': ['Security Analyst', 'Security Engineer', 'Penetration Tester'],
+            'Mobile Development': ['Mobile Developer', 'iOS Developer', 'Android Developer'],
+            'Database': ['Database Administrator', 'Data Engineer', 'Database Developer'],
+            'Software Engineering': ['Software Engineer', 'Software Developer', 'Systems Engineer']
+        }
+        
+        roles = []
+        for domain in domains[:5]:
+            if domain in domain_role_map:
+                roles.extend(domain_role_map[domain])
+        
+        return list(set(roles))[:10]  # Return unique roles, max 10
 
 resume_analyzer = ResumeAnalyzer()
+

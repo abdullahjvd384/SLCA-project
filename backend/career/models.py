@@ -34,16 +34,17 @@ class ResumeAnalysis(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
-    overall_score = Column(Float)
-    section_scores = Column(JSONB)  # {"experience": 8.5, "education": 9.0, ...}
-    recommendations = Column(JSONB)  # Array of recommendation objects
-    keywords_found = Column(ARRAY(String))
-    keywords_missing = Column(ARRAY(String))
     ats_score = Column(Float)
+    strengths = Column(JSONB)  # Array of strengths
+    weaknesses = Column(JSONB)  # Array of weaknesses
+    improvement_suggestions = Column(JSONB)  # Array of suggestions
+    keyword_match_score = Column(Float)
+    formatting_score = Column(Float)
+    content_quality_score = Column(Float)
     analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
     
     def __repr__(self):
-        return f"<ResumeAnalysis {self.id} - Score: {self.overall_score}>"
+        return f"<ResumeAnalysis {self.id} - ATS Score: {self.ats_score}>"
 
 class CareerRecommendation(Base):
     __tablename__ = "career_recommendations"

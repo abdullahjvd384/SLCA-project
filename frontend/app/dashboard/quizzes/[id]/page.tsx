@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, Award } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Award, ArrowLeft, BarChart3 } from 'lucide-react';
 
 interface QuizAnswer {
-  question_id: number;
+  question_id: string;  // UUID
   selected_answer?: string;
   answer_text?: string;
 }
@@ -19,14 +19,16 @@ interface QuizAnswer {
 export default function TakeQuizPage() {
   const params = useParams();
   const router = useRouter();
-  const quizId = parseInt(params.id as string);
+  const quizId = params.id as string;  // Keep as string UUID
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [answers, setAnswers] = useState<Record<number, QuizAnswer>>({});
-  const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [answers, setAnswers] = useState<Record<string, QuizAnswer>>({});
+  const [attempt, setAttempt] = useState<any | null>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [timeStarted, setTimeStarted] = useState<Date | null>(null);
+  const [hasExistingAttempt, setHasExistingAttempt] = useState(false);
 
   useEffect(() => {
     loadQuiz();
@@ -35,25 +37,60 @@ export default function TakeQuizPage() {
   const loadQuiz = async () => {
     try {
       setLoading(true);
+      
+      // Always load quiz data first
       const data = await api.getQuiz(quizId);
+      console.log('Quiz loaded:', data);
       setQuiz(data);
-      setTimeStarted(new Date());
+      
+      // Check if user already has an attempt for this quiz
+      try {
+        const existingAttempt = await api.getQuizAttempt(quizId);
+        if (existingAttempt && existingAttempt.completed_at) {
+          console.log('✓ Found existing completed attempt');
+          setAttempt(existingAttempt);
+          setHasExistingAttempt(true);
+          setLoading(false);
+          return;
+        }
+      } catch (error: any) {
+        // No existing attempt (404 is expected), continue to start new attempt
+        if (error.response?.status === 404) {
+          console.log('✓ No previous attempt found, starting fresh quiz');
+        } else {
+          console.warn('⚠️ Error checking for existing attempt:', error.message);
+        }
+      }
+      
+      // Start quiz attempt to track time
+      try {
+        const startResponse = await api.startQuizAttempt(quizId);
+        setAttemptId(startResponse.attempt_id);
+        setTimeStarted(new Date(startResponse.started_at));
+        console.log('Quiz attempt started:', startResponse);
+      } catch (error: any) {
+        console.error('Failed to start attempt tracking:', error);
+        // Fallback to client-side time tracking
+        setTimeStarted(new Date());
+      }
       
       // Initialize answers object
-      const initialAnswers: Record<number, QuizAnswer> = {};
+      const initialAnswers: Record<string, QuizAnswer> = {};
       data.questions.forEach(q => {
         initialAnswers[q.id] = { question_id: q.id };
       });
       setAnswers(initialAnswers);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to load quiz');
+      console.error('Failed to load quiz:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to load quiz';
+      toast.error(errorMessage);
       router.push('/dashboard/quizzes');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAnswerChange = (questionId: number, value: string, type: 'mcq' | 'true_false' | 'short_answer') => {
+  const handleAnswerChange = (questionId: string, value: string, type: 'mcq' | 'true_false' | 'short_answer') => {
     setAnswers(prev => ({
       ...prev,
       [questionId]: {
@@ -80,14 +117,25 @@ export default function TakeQuizPage() {
 
     try {
       setSubmitting(true);
-      const attemptData = await api.submitQuizAttempt(quizId, {
-        answers: Object.values(answers)
-      });
       
+      // Transform answers to match backend schema
+      const formattedAnswers = Object.values(answers).map(ans => ({
+        question_id: ans.question_id,
+        answer: ans.selected_answer || ans.answer_text || ''
+      }));
+      
+      console.log('Submitting answers:', formattedAnswers);
+      
+      const attemptData = await api.submitQuiz(quizId, { answers: formattedAnswers });
+      
+      console.log('Quiz submission response:', attemptData);
       setAttempt(attemptData);
       toast.success('Quiz submitted successfully!');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to submit quiz');
+      console.error('Failed to submit quiz:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to submit quiz';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -107,173 +155,245 @@ export default function TakeQuizPage() {
     );
   }
 
-  if (!quiz) {
+  if (!quiz && !attempt) {
     return null;
   }
 
   // Show results if attempt exists
   if (attempt) {
+    const timeTaken = attempt.time_taken 
+      ? Math.round(attempt.time_taken / 60) 
+      : timeStarted 
+        ? Math.round((new Date().getTime() - timeStarted.getTime()) / 60000)
+        : 0;
+    
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Card className="p-8 text-center">
-          <Award className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-3xl font-bold mb-2">Quiz Completed!</h1>
-          <p className="text-gray-600 mb-6">{quiz.title}</p>
+      <div className="max-w-4xl mx-auto space-y-6 pb-8">
+        {/* Main Results Card */}
+        <Card className="p-8 text-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+          <div className="inline-block p-4 bg-white rounded-full shadow-lg mb-4">
+            <Award className={`w-16 h-16 ${
+              attempt.score >= 80 ? 'text-green-500' : 
+              attempt.score >= 60 ? 'text-yellow-500' : 
+              'text-orange-500'
+            }`} />
+          </div>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Quiz Completed!
+          </h1>
+          <p className="text-gray-600 mb-8">{quiz?.title || 'Quiz Results'}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Score</p>
-              <p className={`text-3xl font-bold ${getScoreColor(attempt.score)}`}>
-                {attempt.score.toFixed(1)}%
+          {/* Enhanced Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border-t-4 border-blue-500">
+              <div className="flex items-center justify-center mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Your Score</p>
+              <p className={`text-4xl font-bold ${getScoreColor(attempt.score)}`}>
+                {attempt.score?.toFixed(1) || 0}%
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {attempt.score >= 80 ? 'Excellent!' : 
+                 attempt.score >= 60 ? 'Good Job!' : 
+                 attempt.score >= 40 ? 'Keep Practicing' : 'Need More Study'}
               </p>
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Correct Answers</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {attempt.correct_answers}/{attempt.total_questions}
+            <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border-t-4 border-green-500">
+              <div className="flex items-center justify-center mb-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Correct Answers</p>
+              <p className="text-4xl font-bold text-gray-900">
+                {attempt.correct_answers || 0}<span className="text-2xl text-gray-400">/{attempt.total_questions || 0}</span>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {Math.round(((attempt.correct_answers || 0) / (attempt.total_questions || 1)) * 100)}% accuracy
               </p>
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Time Taken</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {Math.round((new Date(attempt.completed_at).getTime() - new Date(attempt.started_at).getTime()) / 60000)} min
+            <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow border-t-4 border-purple-500">
+              <div className="flex items-center justify-center mb-2">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Clock className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Time Taken</p>
+              <p className="text-4xl font-bold text-gray-900">
+                {timeTaken}<span className="text-2xl text-gray-400"> min</span>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {timeTaken > 20 ? 'Take your time' : 'Great pace!'}
               </p>
             </div>
           </div>
 
-          {attempt.feedback && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-              <h3 className="font-semibold text-blue-900 mb-2">AI Feedback</h3>
-              <p className="text-blue-800 whitespace-pre-wrap">{attempt.feedback}</p>
-            </div>
-          )}
-
-          <div className="flex gap-4 justify-center">
-            <Button onClick={() => router.push('/dashboard/quizzes')}>
+          <div className="flex justify-center">
+            <Button onClick={() => router.push('/dashboard/quizzes')} className="px-6">
+              <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Quizzes
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setAttempt(null);
-                setTimeStarted(new Date());
-                const initialAnswers: Record<number, QuizAnswer> = {};
-                quiz.questions.forEach(q => {
-                  initialAnswers[q.id] = { question_id: q.id };
-                });
-                setAnswers(initialAnswers);
-              }}
-            >
-              Retake Quiz
             </Button>
           </div>
         </Card>
 
-        {/* Review Answers */}
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4">Answer Review</h2>
-          <div className="space-y-6">
-            {quiz.questions.map((question, index) => {
-              const userAnswer = attempt.answers.find(a => a.question_id === question.id);
-              const isCorrect = userAnswer?.is_correct;
-              
-              return (
-                <div key={question.id} className="border-b pb-6 last:border-b-0">
-                  <div className="flex items-start gap-3 mb-3">
-                    {isCorrect ? (
-                      <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+        {/* Detailed Feedback */}
+        {attempt.feedback && attempt.feedback.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900">Detailed Results</h2>
+            {attempt.feedback.map((fb: any, index: number) => (
+              <Card key={fb.question_id || index} className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    {fb.is_correct ? (
+                      <CheckCircle className="w-8 h-8 text-green-600" />
                     ) : (
-                      <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+                      <XCircle className="w-8 h-8 text-red-600" />
                     )}
-                    <div className="flex-1">
-                      <p className="font-semibold mb-2">
-                        {index + 1}. {question.question_text}
-                      </p>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-2">Question {index + 1}</h3>
+                    <p className="text-gray-700 mb-4">{fb.question_text}</p>
+                    
+                    <div className="space-y-2">
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">Your Answer:</p>
+                        <p className={`font-medium ${fb.is_correct ? 'text-green-700' : 'text-red-700'}`}>
+                          {fb.user_answer || 'Not answered'}
+                        </p>
+                      </div>
                       
-                      {question.question_type === 'mcq' && (
-                        <div className="space-y-2">
-                          {question.options?.map((option, idx) => (
-                            <div
-                              key={idx}
-                              className={`p-3 rounded-lg ${
-                                option === question.correct_answer
-                                  ? 'bg-green-100 border-2 border-green-500'
-                                  : option === userAnswer?.selected_answer
-                                  ? 'bg-red-100 border-2 border-red-500'
-                                  : 'bg-gray-50'
-                              }`}
-                            >
-                              {option}
-                              {option === question.correct_answer && (
-                                <span className="ml-2 text-green-700 font-semibold">(Correct)</span>
-                              )}
-                              {option === userAnswer?.selected_answer && option !== question.correct_answer && (
-                                <span className="ml-2 text-red-700 font-semibold">(Your answer)</span>
-                              )}
-                            </div>
-                          ))}
+                      {!fb.is_correct && (
+                        <div className="bg-green-50 p-3 rounded">
+                          <p className="text-sm text-gray-600">Correct Answer:</p>
+                          <p className="font-medium text-green-700">{fb.correct_answer}</p>
                         </div>
                       )}
                       
-                      {question.question_type === 'true_false' && (
-                        <div className="space-y-2">
-                          <div className={`p-3 rounded-lg ${
-                            question.correct_answer === 'True'
-                              ? 'bg-green-100 border-2 border-green-500'
-                              : userAnswer?.selected_answer === 'True'
-                              ? 'bg-red-100 border-2 border-red-500'
-                              : 'bg-gray-50'
-                          }`}>
-                            True
-                            {question.correct_answer === 'True' && (
-                              <span className="ml-2 text-green-700 font-semibold">(Correct)</span>
-                            )}
-                          </div>
-                          <div className={`p-3 rounded-lg ${
-                            question.correct_answer === 'False'
-                              ? 'bg-green-100 border-2 border-green-500'
-                              : userAnswer?.selected_answer === 'False'
-                              ? 'bg-red-100 border-2 border-red-500'
-                              : 'bg-gray-50'
-                          }`}>
-                            False
-                            {question.correct_answer === 'False' && (
-                              <span className="ml-2 text-green-700 font-semibold">(Correct)</span>
-                            )}
-                          </div>
+                      {fb.explanation && (
+                        <div className="bg-blue-50 p-3 rounded">
+                          <p className="text-sm text-gray-600">Explanation:</p>
+                          <p className="text-sm text-blue-900">{fb.explanation}</p>
                         </div>
                       )}
                       
-                      {question.question_type === 'short_answer' && (
-                        <div className="space-y-2">
-                          <div className="bg-gray-50 p-3 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Your Answer:</p>
-                            <p className="font-medium">{userAnswer?.answer_text || 'No answer provided'}</p>
-                          </div>
-                          <div className="bg-green-50 p-3 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Correct Answer:</p>
-                            <p className="font-medium">{question.correct_answer}</p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {question.explanation && (
-                        <div className="mt-3 bg-blue-50 p-3 rounded-lg">
-                          <p className="text-sm text-blue-900">
-                            <span className="font-semibold">Explanation: </span>
-                            {question.explanation}
-                          </p>
-                        </div>
-                      )}
+                      <div className="text-sm text-gray-600">
+                        Points: {fb.points_earned?.toFixed(1) || 0} / {fb.points_possible || 1}
+                      </div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Performance Insights & Recommendations */}
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+          <div className="flex items-start gap-3 mb-4">
+            <Award className="w-8 h-8 text-purple-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Performance Insights</h2>
+              <p className="text-gray-600">AI-powered analysis of your quiz performance</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-sm font-medium text-gray-600 mb-1">Performance Level</p>
+              <p className={`text-2xl font-bold ${
+                attempt.score >= 80 ? 'text-green-600' : 
+                attempt.score >= 60 ? 'text-yellow-600' : 
+                attempt.score >= 40 ? 'text-orange-600' : 'text-red-600'
+              }`}>
+                {attempt.score >= 80 ? 'Excellent' : 
+                 attempt.score >= 60 ? 'Good' : 
+                 attempt.score >= 40 ? 'Fair' : 'Needs Improvement'}
+              </p>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-sm font-medium text-gray-600 mb-1">Questions to Review</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {(attempt.total_questions - attempt.correct_answers) || 0}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-lg shadow-sm">
+            <h3 className="font-semibold text-lg text-gray-900 mb-3 flex items-center gap-2">
+              <span className="text-purple-600">💡</span> Key Recommendations
+            </h3>
+            <div className="space-y-3">
+              {attempt.score < 60 && (
+                <div className="flex gap-3 p-3 bg-red-50 rounded-lg border-l-4 border-red-400">
+                  <span className="text-red-600 flex-shrink-0">⚠️</span>
+                  <div>
+                    <p className="font-medium text-red-900">Focus on Core Concepts</p>
+                    <p className="text-sm text-red-800">Your score indicates gaps in understanding. Review the detailed explanations above and revisit the study material.</p>
+                  </div>
+                </div>
+              )}
+              
+              {attempt.score >= 60 && attempt.score < 80 && (
+                <div className="flex gap-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                  <span className="text-yellow-600 flex-shrink-0">📚</span>
+                  <div>
+                    <p className="font-medium text-yellow-900">Strengthen Your Knowledge</p>
+                    <p className="text-sm text-yellow-800">Good performance! Focus on the questions you missed to achieve excellence. Practice similar questions to reinforce concepts.</p>
+                  </div>
+                </div>
+              )}
+              
+              {attempt.score >= 80 && (
+                <div className="flex gap-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
+                  <span className="text-green-600 flex-shrink-0">🌟</span>
+                  <div>
+                    <p className="font-medium text-green-900">Outstanding Performance</p>
+                    <p className="text-sm text-green-800">Excellent work! You demonstrate strong understanding. Challenge yourself with more advanced topics to continue growing.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                <span className="text-blue-600 flex-shrink-0">🎯</span>
+                <div>
+                  <p className="font-medium text-blue-900">Next Steps</p>
+                  <ul className="text-sm text-blue-800 list-disc list-inside space-y-1 mt-1">
+                    <li>Review the detailed feedback above for each incorrect answer</li>
+                    <li>Study the explanations to understand the reasoning behind correct answers</li>
+                    <li>Revisit the source material focusing on areas where you struggled</li>
+                    {attempt.score < 70 && <li>Consider retaking the quiz after additional review</li>}
+                    <li>Practice similar questions to reinforce your learning</li>
+                  </ul>
+                </div>
+              </div>
+
+              {timeTaken > 20 && (
+                <div className="flex gap-3 p-3 bg-purple-50 rounded-lg border-l-4 border-purple-400">
+                  <span className="text-purple-600 flex-shrink-0">⏱️</span>
+                  <div>
+                    <p className="font-medium text-purple-900">Time Management Tip</p>
+                    <p className="text-sm text-purple-800">You took {timeTaken} minutes. Consider practicing time management to improve your efficiency in assessments.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </Card>
+      </div>
+    );
+  }
+
+  // Add null check before rendering quiz questions
+  if (!quiz) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -284,19 +404,19 @@ export default function TakeQuizPage() {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">{quiz.title}</h1>
-            {quiz.topic && (
+            <h1 className="text-2xl font-bold">{quiz?.title || 'Quiz'}</h1>
+            {quiz?.topic && (
               <p className="text-gray-600 mt-1">Topic: {quiz.topic}</p>
             )}
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <Clock className="w-5 h-5" />
-            <span>{quiz.questions.length} Questions</span>
+            <span>{quiz?.questions?.length || 0} Questions</span>
           </div>
         </div>
 
         <div className="space-y-8">
-          {quiz.questions.map((question, index) => (
+          {quiz?.questions?.map((question, index) => (
             <div key={question.id} className="border-b pb-6 last:border-b-0">
               <p className="font-semibold mb-4">
                 {index + 1}. {question.question_text}
@@ -369,6 +489,25 @@ export default function TakeQuizPage() {
                   onChange={(e) => handleAnswerChange(question.id, e.target.value, 'short_answer')}
                   placeholder="Type your answer here..."
                   className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-primary min-h-[100px]"
+                />
+              )}
+
+              {question.question_type === 'short' && (
+                <textarea
+                  value={answers[question.id]?.answer_text || ''}
+                  onChange={(e) => handleAnswerChange(question.id, e.target.value, 'short_answer')}
+                  placeholder="Type your answer here..."
+                  className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-primary min-h-[100px]"
+                />
+              )}
+
+              {question.question_type === 'fill_blank' && (
+                <input
+                  type="text"
+                  value={answers[question.id]?.answer_text || ''}
+                  onChange={(e) => handleAnswerChange(question.id, e.target.value, 'short_answer')}
+                  placeholder="Fill in the blank..."
+                  className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-primary"
                 />
               )}
             </div>

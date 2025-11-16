@@ -54,22 +54,22 @@ export default function ViewNotePage() {
     
     try {
       setIsDownloading(true);
-      const blob = await api.exportNotePdf(note.id);
+      const blob = await api.exportNoteDocx(note.id);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${note.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      a.download = `${note.title.replace(/[^a-z0-9]/gi, '_')}.docx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      toast.success('PDF downloaded successfully');
+      toast.success('Document downloaded successfully');
     } catch (error) {
       console.error('Download failed:', error);
-      toast.error('Failed to download PDF');
+      toast.error('Failed to download document');
     } finally {
       setIsDownloading(false);
     }

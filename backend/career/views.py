@@ -3,7 +3,7 @@ Career module API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, Any
 from config.database import get_db
 from career.models import Resume, ResumeAnalysis, CareerRecommendation
 from career.schemas import (
@@ -13,6 +13,8 @@ from career.schemas import (
 from career.resume_parser import resume_parser
 from career.analyzer import resume_analyzer
 from career.recommender import career_recommender
+from career.skill_matcher import skill_matcher
+from career.recommendation_engine import recommendation_engine
 from users.auth import get_current_user
 from users.models import User
 from progress.models import ActivityType
@@ -84,6 +86,7 @@ async def upload_resume(
     # Save to database
     resume = Resume(
         user_id=current_user.id,
+        filename=file.filename,
         file_path=str(file_path),
         parsed_content=parsed_content
     )
@@ -102,14 +105,22 @@ async def upload_resume(
     
     return ResumeResponse.from_orm(resume)
 
-@router.post("/resume/{resume_id}/analyze", response_model=ResumeAnalysisResponse)
+@router.post("/resume/{resume_id}/analyze", response_model=Dict[str, Any])
 def analyze_resume(
     resume_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Analyze resume and provide feedback
+    Comprehensive resume analysis with AI-powered recommendations
+    
+    Analyzes resume against user's learning profile from uploaded documents
+    and provides detailed, actionable career guidance including:
+    - Skill gap analysis
+    - Project recommendations
+    - Certification suggestions
+    - Resume improvement tips
+    - Career path guidance
     
     Args:
         resume_id: Resume ID
@@ -117,8 +128,11 @@ def analyze_resume(
         db: Database session
         
     Returns:
-        Resume analysis results
+        Comprehensive analysis with recommendations
     """
+    from documents.models import Document, ProcessingStatus
+    from documents.topic_extractor import topic_extractor
+    
     # Get resume
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -131,25 +145,149 @@ def analyze_resume(
             detail="Resume not found"
         )
     
-    # Perform analysis
+    # Get user's learning profile from documents
     try:
-        analysis_results = resume_analyzer.analyze_resume(resume.parsed_content)
+        documents = db.query(Document).filter(
+            Document.user_id == current_user.id,
+            Document.processing_status == ProcessingStatus.COMPLETED
+        ).all()
+        
+        # Extract topic data
+        documents_data = []
+        for doc in documents:
+            doc_data = {
+                'topics': doc.topics or [],
+                'domains': doc.domains or [],
+                'keywords': doc.keywords or [],
+                'technical_skills': doc.doc_metadata.get('technical_skills', []) if doc.doc_metadata else [],
+                'technologies': doc.doc_metadata.get('technologies', []) if doc.doc_metadata else [],
+                'programming_languages': doc.doc_metadata.get('programming_languages', []) if doc.doc_metadata else []
+            }
+            documents_data.append(doc_data)
+        
+        # Aggregate interests
+        interest_profile = topic_extractor.aggregate_user_interests(documents_data) if documents_data else {}
+        
+        # COMPREHENSIVE ANALYSIS PIPELINE
+        if interest_profile and interest_profile.get('total_documents', 0) > 0:
+            # Step 1: Perform skill gap analysis
+            resume_skills = resume.parsed_content.get('skills', [])
+            learned_skills = interest_profile.get('top_skills', [])
+            learned_domains = interest_profile.get('primary_domains', [])
+            
+            skill_gaps = skill_matcher.analyze_skill_gaps(
+                resume_skills,
+                learned_skills,
+                learned_domains
+            )
+            
+            # Step 2: Enhanced resume analysis with interest profile
+            analysis_results = resume_analyzer.analyze_with_interest_profile(
+                resume.parsed_content,
+                interest_profile
+            )
+            
+            # Step 3: Generate comprehensive recommendations
+            recommendations = recommendation_engine.generate_comprehensive_recommendations(
+                resume.parsed_content,
+                interest_profile,
+                skill_gaps
+            )
+            
+            analysis_type = 'comprehensive_profile_based'
+            
+            # Combine all results
+            complete_analysis = {
+                'analysis_type': analysis_type,
+                'ats_score': analysis_results.get('ats_score', 0),
+                'keyword_match_score': analysis_results.get('keyword_match_score', 0),
+                'formatting_score': analysis_results.get('formatting_score', 0),
+                'content_quality_score': analysis_results.get('content_quality_score', 0),
+                
+                # Resume analysis
+                'strengths': analysis_results.get('strengths', []),
+                'weaknesses': analysis_results.get('weaknesses', []),
+                'improvement_suggestions': analysis_results.get('improvement_suggestions', []),
+                
+                # Skill analysis
+                'skill_match_score': skill_gaps.get('match_score', 0),
+                'matched_skills': skill_gaps.get('matched_skills', []),
+                'skill_gaps': skill_gaps.get('gaps', {}),
+                'skill_insights': skill_gaps.get('insights', []),
+                
+                # Comprehensive recommendations
+                'skills_to_add': recommendations.get('skills_to_add', []),
+                'skills_to_remove': recommendations.get('skills_to_remove', []),
+                'projects_to_add': recommendations.get('projects_to_add', []),
+                'projects_to_improve': recommendations.get('projects_to_improve', []),
+                'certifications_to_pursue': recommendations.get('certifications_to_pursue', []),
+                'resume_structure_improvements': recommendations.get('resume_structure_improvements', []),
+                'experience_enhancements': recommendations.get('experience_enhancements', []),
+                'job_roles_suited': recommendations.get('job_roles_suited', []),
+                'learning_path': recommendations.get('learning_path', []),
+                'immediate_actions': recommendations.get('immediate_actions', []),
+                
+                # Career alignment from analyzer
+                'resume_gaps': analysis_results.get('resume_gaps', {}),
+                'career_alignment': analysis_results.get('career_alignment', {}),
+                'actionable_steps': analysis_results.get('actionable_steps', {}),
+                
+                # Profile context
+                'learning_profile': {
+                    'domains': interest_profile.get('primary_domains', []),
+                    'topics': interest_profile.get('primary_topics', []),
+                    'skills': interest_profile.get('top_skills', []),
+                    'technologies': interest_profile.get('technologies', []),
+                    'languages': interest_profile.get('programming_languages', []),
+                    'total_documents': interest_profile.get('total_documents', 0)
+                }
+            }
+            
+        else:
+            # Standard analysis if no documents
+            analysis_results = resume_analyzer.analyze_resume(resume.parsed_content)
+            analysis_type = 'standard'
+            
+            complete_analysis = {
+                'analysis_type': analysis_type,
+                'ats_score': analysis_results.get('ats_score', 0),
+                'keyword_match_score': analysis_results.get('keyword_match_score', 0),
+                'formatting_score': analysis_results.get('formatting_score', 0),
+                'content_quality_score': analysis_results.get('content_quality_score', 0),
+                'strengths': analysis_results.get('strengths', []),
+                'weaknesses': analysis_results.get('weaknesses', []),
+                'improvement_suggestions': analysis_results.get('improvement_suggestions', []),
+                'message': 'Upload study materials to get personalized recommendations based on your learning profile'
+            }
+            
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing resume: {str(e)}"
-        )
+        print(f"Comprehensive analysis failed: {e}")
+        # Fallback to standard analysis
+        analysis_results = resume_analyzer.analyze_resume(resume.parsed_content)
+        analysis_type = 'standard_fallback'
+        
+        complete_analysis = {
+            'analysis_type': analysis_type,
+            'ats_score': analysis_results.get('ats_score', 0),
+            'keyword_match_score': analysis_results.get('keyword_match_score', 0),
+            'formatting_score': analysis_results.get('formatting_score', 0),
+            'content_quality_score': analysis_results.get('content_quality_score', 0),
+            'strengths': analysis_results.get('strengths', []),
+            'weaknesses': analysis_results.get('weaknesses', []),
+            'improvement_suggestions': analysis_results.get('improvement_suggestions', []),
+            'error': str(e)
+        }
     
-    # Save analysis
+    # Save simplified analysis to database
     analysis = ResumeAnalysis(
         resume_id=resume_id,
-        ats_score=analysis_results['ats_score'],
-        strengths=analysis_results['strengths'],
-        weaknesses=analysis_results['weaknesses'],
-        improvement_suggestions=analysis_results['improvement_suggestions'],
-        keyword_match_score=analysis_results['keyword_match_score'],
-        formatting_score=analysis_results['formatting_score'],
-        content_quality_score=analysis_results['content_quality_score']
+        ats_score=complete_analysis.get('ats_score', 0),
+        strengths=complete_analysis.get('strengths', []),
+        weaknesses=complete_analysis.get('weaknesses', []),
+        improvement_suggestions=complete_analysis.get('improvement_suggestions', []),
+        keyword_match_score=complete_analysis.get('keyword_match_score', 0),
+        formatting_score=complete_analysis.get('formatting_score', 0),
+        content_quality_score=complete_analysis.get('content_quality_score', 0)
     )
     
     db.add(analysis)
@@ -163,20 +301,25 @@ def analyze_resume(
         ActivityType.RESUME_ANALYZED,
         {
             'resume_id': str(resume_id),
-            'ats_score': analysis_results['ats_score']
+            'ats_score': complete_analysis.get('ats_score', 0),
+            'analysis_type': analysis_type
         }
     )
     
-    return ResumeAnalysisResponse.from_orm(analysis)
+    # Add analysis ID to response
+    complete_analysis['analysis_id'] = str(analysis.id)
+    complete_analysis['analyzed_at'] = analysis.analyzed_at.isoformat()
+    
+    return complete_analysis
 
-@router.get("/resume/{resume_id}/recommendations", response_model=CareerRecommendationResponse)
-def get_career_recommendations(
+@router.get("/resume/{resume_id}/skill-suggestions", response_model=Dict[str, Any])
+def get_skill_suggestions(
     resume_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get career recommendations based on resume
+    Get skill addition suggestions based on learning profile
     
     Args:
         resume_id: Resume ID
@@ -184,8 +327,11 @@ def get_career_recommendations(
         db: Database session
         
     Returns:
-        Career recommendations
+        Categorized skill suggestions
     """
+    from documents.models import Document, ProcessingStatus
+    from documents.topic_extractor import topic_extractor
+    
     # Get resume
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -198,65 +344,141 @@ def get_career_recommendations(
             detail="Resume not found"
         )
     
-    # Get or create analysis
-    analysis = db.query(ResumeAnalysis).filter(
-        ResumeAnalysis.resume_id == resume_id
-    ).first()
+    # Get user's learning profile
+    documents = db.query(Document).filter(
+        Document.user_id == current_user.id,
+        Document.processing_status == ProcessingStatus.COMPLETED
+    ).all()
     
-    if not analysis:
-        # Create analysis first
-        analysis_results = resume_analyzer.analyze_resume(resume.parsed_content)
-        analysis = ResumeAnalysis(
-            resume_id=resume_id,
-            ats_score=analysis_results['ats_score'],
-            strengths=analysis_results['strengths'],
-            weaknesses=analysis_results['weaknesses'],
-            improvement_suggestions=analysis_results['improvement_suggestions'],
-            keyword_match_score=analysis_results['keyword_match_score'],
-            formatting_score=analysis_results['formatting_score'],
-            content_quality_score=analysis_results['content_quality_score']
-        )
-        db.add(analysis)
-        db.commit()
-        db.refresh(analysis)
+    if not documents:
+        return {
+            'message': 'Upload study materials to get personalized skill suggestions',
+            'suggestions': {}
+        }
     
-    # Check if recommendations already exist
-    existing_recommendation = db.query(CareerRecommendation).filter(
-        CareerRecommendation.resume_id == resume_id
-    ).first()
+    # Extract profile
+    documents_data = []
+    for doc in documents:
+        doc_data = {
+            'topics': doc.topics or [],
+            'domains': doc.domains or [],
+            'keywords': doc.keywords or [],
+            'technical_skills': doc.doc_metadata.get('technical_skills', []) if doc.doc_metadata else [],
+            'technologies': doc.doc_metadata.get('technologies', []) if doc.doc_metadata else [],
+            'programming_languages': doc.doc_metadata.get('programming_languages', []) if doc.doc_metadata else []
+        }
+        documents_data.append(doc_data)
     
-    if existing_recommendation:
-        return CareerRecommendationResponse.from_orm(existing_recommendation)
+    interest_profile = topic_extractor.aggregate_user_interests(documents_data)
     
-    # Generate recommendations
-    try:
-        recommendations = career_recommender.generate_recommendations(
-            resume.parsed_content,
-            {
-                'strengths': analysis.strengths,
-                'weaknesses': analysis.weaknesses
-            }
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating recommendations: {str(e)}"
-        )
+    # Get skill suggestions
+    resume_skills = resume.parsed_content.get('skills', [])
+    learned_skills = interest_profile.get('top_skills', [])
+    technologies = interest_profile.get('technologies', [])
+    languages = interest_profile.get('programming_languages', [])
     
-    # Save recommendations
-    career_rec = CareerRecommendation(
-        resume_id=resume_id,
-        job_titles=recommendations['job_titles'],
-        skills_to_learn=recommendations['skills_to_learn'],
-        course_recommendations=recommendations['course_recommendations'],
-        industry_insights=recommendations['industry_insights']
+    suggestions = skill_matcher.suggest_skill_additions(
+        resume_skills,
+        learned_skills,
+        technologies,
+        languages
     )
     
-    db.add(career_rec)
-    db.commit()
-    db.refresh(career_rec)
+    return {
+        'resume_id': str(resume_id),
+        'current_skills_count': len(resume_skills),
+        'learned_skills_count': len(learned_skills),
+        'suggestions': suggestions,
+        'recommendation': 'Add these skills to strengthen your resume based on your learning profile'
+    }
+
+@router.get("/resume/{resume_id}/recommendations", response_model=Dict[str, Any])
+def get_career_recommendations(
+    resume_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive career recommendations
     
-    return CareerRecommendationResponse.from_orm(career_rec)
+    Args:
+        resume_id: Resume ID
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Detailed career guidance and recommendations
+    """
+    from documents.models import Document, ProcessingStatus
+    from documents.topic_extractor import topic_extractor
+    
+    # Get resume
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user.id
+    ).first()
+    
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found"
+        )
+    
+    # Get learning profile
+    documents = db.query(Document).filter(
+        Document.user_id == current_user.id,
+        Document.processing_status == ProcessingStatus.COMPLETED
+    ).all()
+    
+    if not documents:
+        return {
+            'message': 'Upload study materials to get personalized career recommendations',
+            'recommendations': {}
+        }
+    
+    # Build profile
+    documents_data = []
+    for doc in documents:
+        doc_data = {
+            'topics': doc.topics or [],
+            'domains': doc.domains or [],
+            'keywords': doc.keywords or [],
+            'technical_skills': doc.doc_metadata.get('technical_skills', []) if doc.doc_metadata else [],
+            'technologies': doc.doc_metadata.get('technologies', []) if doc.doc_metadata else [],
+            'programming_languages': doc.doc_metadata.get('programming_languages', []) if doc.doc_metadata else []
+        }
+        documents_data.append(doc_data)
+    
+    interest_profile = topic_extractor.aggregate_user_interests(documents_data)
+    
+    # Analyze skill gaps
+    resume_skills = resume.parsed_content.get('skills', [])
+    learned_skills = interest_profile.get('top_skills', [])
+    learned_domains = interest_profile.get('primary_domains', [])
+    
+    skill_gaps = skill_matcher.analyze_skill_gaps(
+        resume_skills,
+        learned_skills,
+        learned_domains
+    )
+    
+    # Generate recommendations
+    recommendations = recommendation_engine.generate_comprehensive_recommendations(
+        resume.parsed_content,
+        interest_profile,
+        skill_gaps
+    )
+    
+    return {
+        'resume_id': str(resume_id),
+        'recommendations': recommendations,
+        'interest_profile': interest_profile,
+        'profile_summary': {
+            'domains': interest_profile.get('primary_domains', [])[:5],
+            'skills': interest_profile.get('top_skills', [])[:10],
+            'documents_analyzed': interest_profile.get('total_documents', 0)
+        }
+    }
 
 @router.post("/resume/{resume_id}/match-job", response_model=JobMatchResponse)
 def match_job(
@@ -321,7 +543,7 @@ def list_resumes(
     """
     resumes = db.query(Resume).filter(
         Resume.user_id == current_user.id
-    ).order_by(Resume.uploaded_at.desc()).all()
+    ).order_by(Resume.upload_date.desc()).all()
     
     return [ResumeResponse.from_orm(resume) for resume in resumes]
 
