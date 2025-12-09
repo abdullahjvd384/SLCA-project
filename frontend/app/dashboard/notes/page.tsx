@@ -37,7 +37,7 @@ export default function NotesPage() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: string | number) {
     if (!confirm('Are you sure you want to delete this note?')) return;
 
     try {
@@ -49,7 +49,7 @@ export default function NotesPage() {
     }
   }
 
-  async function handleDownloadDocx(id: number, title: string) {
+  async function handleDownloadDocx(id: string | number, title: string) {
     try {
       toast.loading('Preparing DOCX download...', { id: 'docx-download' });
       
@@ -194,7 +194,7 @@ export default function NotesPage() {
                   </CardTitle>
                   <CardDescription className="flex items-center gap-2 text-xs">
                     <Calendar className="h-3 w-3" />
-                    {formatDate(note.created_at)}
+                    {formatDate(note.generated_at)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -4,8 +4,8 @@ Authentication utilities: JWT tokens, password hashing, etc.
 from datetime import datetime, timedelta
 from typing import Optional
 import hashlib
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -13,32 +13,37 @@ from config.settings import settings
 from config.database import get_db
 from users.models import User
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # HTTP Bearer token
 security = HTTPBearer()
 
-def _normalize_password(password: str) -> str:
+def _normalize_password(password: str) -> bytes:
     """
     Normalize password to handle bcrypt's 72-byte limit.
-    Uses SHA-256 to hash long passwords before bcrypt.
+    Always uses SHA-256 to hash passwords before bcrypt to ensure:
+    1. No password ever exceeds bcrypt's 72-byte limit
+    2. Consistent hashing behavior for all password lengths
+    3. No edge cases with multi-byte UTF-8 characters
+    
+    Returns bytes for direct use with bcrypt.
     """
     password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Hash long passwords with SHA-256 first
-        return hashlib.sha256(password_bytes).hexdigest()
-    return password
+    # Always hash with SHA-256 to stay well within bcrypt's 72-byte limit
+    # SHA-256 hex digest is exactly 64 characters (64 bytes in ASCII)
+    sha256_hash = hashlib.sha256(password_bytes).hexdigest()
+    return sha256_hash.encode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
+    """Verify a password against its bcrypt hash"""
     normalized_password = _normalize_password(plain_password)
-    return pwd_context.verify(normalized_password, hashed_password)
+    return bcrypt.checkpw(normalized_password, hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
+    """Hash a password using bcrypt"""
     normalized_password = _normalize_password(password)
-    return pwd_context.hash(normalized_password)
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(normalized_password, salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """

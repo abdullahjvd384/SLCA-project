@@ -19,7 +19,7 @@ export default function SummariesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'short' | 'medium' | 'detailed'>('all');
-  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
+  const [expandedSummaries, setExpandedSummaries] = useState<Set<string | number>>(new Set());
 
   useEffect(() => {
     fetchSummaries();
@@ -40,7 +40,7 @@ export default function SummariesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string | number) {
     if (!confirm('Are you sure you want to delete this summary?')) return;
 
     try {
@@ -55,7 +55,7 @@ export default function SummariesPage() {
     }
   }
 
-  function toggleExpanded(id: string) {
+  function toggleExpanded(id: string | number) {
     const newExpanded = new Set(expandedSummaries);
     if (newExpanded.has(id)) {
       newExpanded.delete(id);

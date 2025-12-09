@@ -67,10 +67,8 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.uploadDocument(formData);
+      // Upload file directly - API handles FormData creation
+      await api.uploadDocument(file);
       toast.success('Document uploaded successfully!');
       await fetchDocuments();
       // Reset file input
@@ -126,9 +124,7 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.uploadDocument(formData);
+      await api.uploadDocument(file);
       toast.success('Document uploaded successfully!');
       await fetchDocuments();
     } catch (error: any) {
@@ -139,7 +135,7 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string | number) {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {

@@ -23,14 +23,23 @@ export default function NewNotePage() {
   const [tagInput, setTagInput] = useState('');
   const [noteType, setNoteType] = useState<'structured' | 'bullet' | 'detailed'>('structured');
 
+  type FormData = {
+    title: string;
+    document_id: string;
+    note_type?: 'structured' | 'bullet' | 'detailed';
+    additional_context?: string;
+    tags?: string[];
+  };
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<CreateNoteFormData>({
+  } = useForm<FormData>({
     resolver: zodResolver(createNoteSchema),
     defaultValues: {
+      title: '',
       note_type: 'structured',
     },
   });
@@ -59,21 +68,30 @@ export default function NewNotePage() {
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
-  const onSubmit = async (data: CreateNoteFormData) => {
-    if (!data.document_id) {
+  const onSubmit = async (data: FormData) => {
+    // Validate document_id is not empty
+    if (!data.document_id || data.document_id.trim() === '') {
       toast.error('Please select a document');
+      return;
+    }
+
+    // Validate title
+    if (!data.title || data.title.trim() === '') {
+      toast.error('Please enter a note title');
       return;
     }
 
     try {
       setIsLoading(true);
       const noteData = {
-        title: data.title,
+        title: data.title.trim(),
         document_id: data.document_id,
-        note_type: noteType,
-        additional_context: data.additional_context || undefined,
+        note_type: data.note_type || noteType,
+        additional_context: data.additional_context?.trim(),
         tags: tags.length > 0 ? tags : undefined,
       };
+
+      console.log('Submitting note data:', noteData);
 
       toast.loading('Generating AI-powered notes... This may take a moment', { 
         id: 'generating',
@@ -147,7 +165,7 @@ export default function NewNotePage() {
                 Select Document <span className="text-red-500">*</span>
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 {...register('document_id')}
               >
                 <option value="">-- Choose a document --</option>

@@ -112,9 +112,18 @@ def read_root():
         "docs": "/docs"
     }
 
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for API"""
+    return {
+        "status": "healthy",
+        "version": settings.VERSION,
+        "timestamp": __import__('datetime').datetime.now().isoformat()
+    }
+
+@app.get("/health")
+def health_check_root():
+    """Health check endpoint at root"""
     return {"status": "healthy"}
 
 if __name__ == "__main__":
