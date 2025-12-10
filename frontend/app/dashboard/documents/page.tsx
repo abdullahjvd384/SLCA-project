@@ -67,7 +67,7 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
-      // Create FormData for file upload
+      // Create FormData and append file with 'file' field name
       const formData = new FormData();
       formData.append('file', file);
       await api.uploadDocument(formData);
@@ -126,6 +126,7 @@ export default function DocumentsPage() {
 
     try {
       setIsUploading(true);
+      // Create FormData and append file with 'file' field name
       const formData = new FormData();
       formData.append('file', file);
       await api.uploadDocument(formData);
@@ -139,7 +140,7 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string | number) {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {

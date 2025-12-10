@@ -17,21 +17,53 @@ export default function DashboardPage() {
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
+      // Check if user is authenticated first
+      if (!user) {
+        setError('Please login to view your dashboard');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
+        setError(null);
+        
         const [progressData, activityData] = await Promise.all([
           api.getProgressOverview(),
           api.getActivityLog(),
         ]);
+        
         setProgress(progressData);
         // Ensure activityData is an array
         const activities = Array.isArray(activityData) ? activityData : [];
         setActivities(activities.slice(0, 5)); // Latest 5 activities
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch dashboard data:', error);
+        
+        // Enhanced error messaging
+        let errorMessage = 'Failed to load dashboard data';
+        
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Request timeout - Please check your internet connection';
+        } else if (error.code === 'ERR_NETWORK') {
+          errorMessage = 'Unable to connect to server - Backend may be offline';
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Session expired - Please login again';
+          // Redirect to login after showing error
+          setTimeout(() => window.location.href = '/login', 2000);
+        } else if (error.response?.status === 403) {
+          errorMessage = 'Access denied - Insufficient permissions';
+        } else if (error.response?.status === 500) {
+          errorMessage = 'Server error - Please try again later';
+        } else if (error.message) {
+          errorMessage = `Error: ${error.message}`;
+        }
+        
+        setError(errorMessage);
         setActivities([]); // Set empty array on error
       } finally {
         setIsLoading(false);
@@ -39,12 +71,63 @@ export default function DashboardPage() {
     }
 
     fetchData();
-  }, []);
+  }, [user]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // Display error state with helpful message
+  if (error) {
+    const isAuthError = error.includes('login') || error.includes('Session expired');
+    
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className={`border rounded-lg p-6 max-w-md ${
+          isAuthError 
+            ? 'bg-yellow-50 border-yellow-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <h3 className={`text-lg font-semibold mb-2 ${
+            isAuthError ? 'text-yellow-900' : 'text-red-900'
+          }`}>
+            {isAuthError ? 'Authentication Required' : 'Unable to Load Dashboard'}
+          </h3>
+          <p className={`mb-4 ${
+            isAuthError ? 'text-yellow-700' : 'text-red-700'
+          }`}>{error}</p>
+          {!isAuthError && (
+            <div className={`space-y-2 text-sm ${
+              isAuthError ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              <p><strong>Troubleshooting steps:</strong></p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Ensure backend server is running on port 8000</li>
+                <li>Check your internet connection</li>
+                <li>Verify you are logged in</li>
+                <li>Try refreshing the page</li>
+              </ul>
+            </div>
+          )}
+          {isAuthError ? (
+            <Link href="/login">
+              <Button className="mt-4 w-full">
+                Go to Login
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              onClick={() => window.location.reload()}
+              className="mt-4 w-full"
+            >
+              Retry
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -279,7 +362,7 @@ export default function DashboardPage() {
                           </p>
                           <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatRelativeTime(activity.timestamp)}
+                            {formatRelativeTime(activity.timestamp || activity.created_at || new Date().toISOString())}
                           </p>
                         </div>
                       </motion.div>
@@ -351,40 +434,40 @@ function getActivityDescription(activity: ActivityLog): string {
   const details = activity.activity_details || {};
   
   switch (activity.activity_type) {
-    case 'upload':
-      return `Uploaded document: ${details.filename || 'New document'}`;
-    case 'note':
+    case 'document_upload':
+      return `Uploaded document: ${details.filename || details.title || 'New document'}`;
+    case 'note_created':
       return `Created note: ${details.title || 'New note'}`;
-    case 'summary':
-      return `Generated summary for ${details.document_title || 'document'}`;
-    case 'quiz':
+    case 'summary_generated':
+      return `Generated summary for ${details.document_title || details.title || 'document'}`;
+    case 'quiz_taken':
       return `Generated quiz: ${details.title || details.quiz_title || 'New quiz'}`;
-    case 'quiz_attempt':
+    case 'quiz_attempted':
       const score = details.score !== undefined ? ` (Score: ${details.score}%)` : '';
       return `Completed quiz${score}`;
-    case 'resume_uploaded':
-      return `Uploaded resume: ${details.filename || 'Resume'}`;
-    case 'resume_analyzed':
-      return `Analyzed resume with ${details.ats_score || 0}% ATS score`;
+    case 'document_processed':
+      return `Processed document: ${details.filename || details.title || 'Document'}`;
     default:
+      // Fallback for old activity types
+      if (activity.description) {
+        return activity.description;
+      }
       return 'Activity recorded';
   }
 }
 
 function getActivityIconComponent(type: string) {
   switch (type) {
-    case 'upload':
+    case 'document_upload':
+    case 'document_processed':
       return FileText;
-    case 'quiz':
-    case 'quiz_attempt':
+    case 'quiz_taken':
+    case 'quiz_attempted':
       return ClipboardCheck;
-    case 'note':
+    case 'note_created':
       return BookOpen;
-    case 'summary':
+    case 'summary_generated':
       return Brain;
-    case 'resume_uploaded':
-    case 'resume_analyzed':
-      return TrendingUp;
     default:
       return FileText;
   }

@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Clock, Award, ArrowLeft, BarChart3 } from 'lucide-react';
 
 interface QuizAnswer {
-  question_id: string;  // UUID
+  question_id: string | number;  // UUID or number
   selected_answer?: string;
   answer_text?: string;
 }
@@ -77,7 +77,8 @@ export default function TakeQuizPage() {
       // Initialize answers object
       const initialAnswers: Record<string, QuizAnswer> = {};
       data.questions.forEach(q => {
-        initialAnswers[q.id] = { question_id: q.id };
+        const qId = String(q.id);
+        initialAnswers[qId] = { question_id: qId };
       });
       setAnswers(initialAnswers);
     } catch (error: any) {
@@ -90,11 +91,12 @@ export default function TakeQuizPage() {
     }
   };
 
-  const handleAnswerChange = (questionId: string, value: string, type: 'mcq' | 'true_false' | 'short_answer') => {
+  const handleAnswerChange = (questionId: string | number, value: string, type: 'mcq' | 'true_false' | 'short_answer') => {
+    const qId = String(questionId);
     setAnswers(prev => ({
       ...prev,
-      [questionId]: {
-        question_id: questionId,
+      [qId]: {
+        question_id: qId,
         ...(type === 'short_answer' 
           ? { answer_text: value }
           : { selected_answer: value }
@@ -106,7 +108,7 @@ export default function TakeQuizPage() {
   const handleSubmit = async () => {
     // Check if all questions are answered
     const unanswered = quiz?.questions.filter(q => {
-      const answer = answers[q.id];
+      const answer = answers[String(q.id)];
       return !answer?.selected_answer && !answer?.answer_text;
     });
 
@@ -118,11 +120,14 @@ export default function TakeQuizPage() {
     try {
       setSubmitting(true);
       
-      // Transform answers to match backend schema
-      const formattedAnswers = Object.values(answers).map(ans => ({
-        question_id: ans.question_id,
-        answer: ans.selected_answer || ans.answer_text || ''
-      }));
+      // Transform answers to array format expected by backend QuizSubmission schema
+      // Backend expects: { answers: [{ question_id: UUID, answer: string }] }
+      const formattedAnswers = Object.values(answers)
+        .filter(ans => ans.question_id)
+        .map(ans => ({
+          question_id: String(ans.question_id),
+          answer: ans.selected_answer || ans.answer_text || ''
+        }));
       
       console.log('Submitting answers:', formattedAnswers);
       

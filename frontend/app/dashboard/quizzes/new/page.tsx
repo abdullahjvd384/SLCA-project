@@ -59,20 +59,62 @@ export default function NewQuizPage() {
   };
 
   const onSubmit = async (data: GenerateQuizFormData) => {
+    // Validate document_id is not empty
+    if (!data.document_id || data.document_id.trim() === '') {
+      toast.error('Please select a document');
+      return;
+    }
+
+    // Validate document_id is a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(data.document_id.trim())) {
+      toast.error('Invalid document selected. Please try again.');
+      return;
+    }
+
+    // Validate at least one question type is selected
+    if (selectedTypes.length === 0) {
+      toast.error('Please select at least one question type');
+      return;
+    }
+
     try {
       setIsLoading(true);
       console.log('Quiz form data:', data);
       console.log('Selected types:', selectedTypes);
       
-      const quiz = await api.generateQuiz({
-        ...data,
-        question_types: selectedTypes,
+      // Determine question_type based on selected types
+      let questionType: 'mcq' | 'short' | 'true_false' | 'mixed' = 'mixed';
+      if (selectedTypes.length === 1) {
+        if (selectedTypes[0] === 'mcq') questionType = 'mcq';
+        else if (selectedTypes[0] === 'true_false') questionType = 'true_false';
+        else if (selectedTypes[0] === 'short_answer') questionType = 'short';
+      }
+
+      // Convert to backend format
+      const quizRequest = {
+        document_ids: [data.document_id],  // Backend expects array
+        question_type: questionType,
+        difficulty: data.difficulty,
+        num_questions: data.num_questions,
+        title: data.topic || undefined,
+      };
+
+      console.log('Sending quiz request:', quizRequest);
+      
+      toast.loading('Generating AI-powered quiz... This may take a moment', { 
+        id: 'generating',
+        duration: 30000 
       });
+
+      const quiz = await api.generateQuiz(quizRequest);
       
       console.log('Quiz generated:', quiz);
+      toast.dismiss('generating');
       toast.success('Quiz generated successfully!');
       router.push(`/dashboard/quizzes/${quiz.id}`);
     } catch (error: any) {
+      toast.dismiss('generating');
       console.error('Quiz generation error:', error);
       console.error('Error response:', error.response?.data);
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate quiz';

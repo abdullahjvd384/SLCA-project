@@ -46,23 +46,29 @@ export default function NewSummaryPage() {
   }, []);
 
   const onSubmit = async (data: GenerateSummaryFormData) => {
+    // Validate document_id is not empty
+    if (!data.document_id || data.document_id.trim() === '') {
+      toast.error('Please select a document');
+      return;
+    }
+
     try {
       setIsLoading(true);
       console.log('Submitting summary data:', data);
       
-      // Prepare the request data
-      const requestData = {
-        document_id: data.document_id,
-        summary_length: data.summary_length
-      };
-      
-      console.log('Request data:', requestData);
-      const result = await api.generateSummary(requestData);
+      toast.loading('Generating AI-powered summary... This may take a moment', { 
+        id: 'generating',
+        duration: 30000 
+      });
+
+      const result = await api.generateSummary(data);
       console.log('Summary generated:', result);
       
+      toast.dismiss('generating');
       toast.success('Summary generated successfully!');
       router.push('/dashboard/summaries');
     } catch (error: any) {
+      toast.dismiss('generating');
       console.error('Summary generation error:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate summary';
       toast.error(errorMessage);
@@ -137,15 +143,15 @@ export default function NewSummaryPage() {
             {/* Summary Length */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Summary Type
+                Summary Length
               </label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 {...register('summary_length')}
               >
-                <option value="short">Bullet Points (2-3 points)</option>
-                <option value="medium">Medium (5-7 points)</option>
-                <option value="detailed">Detailed (Comprehensive)</option>
+                <option value="short">Short - Quick bullet points</option>
+                <option value="medium">Medium - Balanced summary</option>
+                <option value="detailed">Detailed - Comprehensive summary</option>
               </select>
               {errors.summary_length && (
                 <p className="mt-1 text-sm text-red-600">{errors.summary_length.message}</p>

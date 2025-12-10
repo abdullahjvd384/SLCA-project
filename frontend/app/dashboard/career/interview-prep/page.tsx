@@ -28,7 +28,15 @@ export default function InterviewPrepPage() {
     try {
       setLoading(true);
       const data = await api.getInterviewPrep();
-      setPrepData(data);
+      // Transform API response to match expected format
+      const transformedData: InterviewPrep = {
+        common_questions: (data as any).questions || (data as any).common_questions || [],
+        tips: data.tips || [],
+        technical_concepts: (data as any).technical_concepts,
+        behavioral_framework: (data as any).behavioral_framework,
+        role_specific_questions: (data as any).role_specific_questions
+      };
+      setPrepData(transformedData);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to load interview prep');
     } finally {

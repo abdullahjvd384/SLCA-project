@@ -170,7 +170,18 @@ class ProgressAnalytics:
             Document.user_id == user_id
         ).group_by(Document.content_type).all()
         
-        return {doc_type.value: count for doc_type, count in documents}
+        result = {}
+        for doc_type, count in documents:
+            # Handle enum, string, or None values safely
+            if doc_type is None:
+                key = "unknown"
+            elif hasattr(doc_type, 'value'):
+                key = doc_type.value
+            else:
+                key = str(doc_type)
+            result[key] = count
+        
+        return result
     
     @staticmethod
     def get_weekly_activity(
