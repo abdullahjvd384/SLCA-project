@@ -157,9 +157,9 @@ backend/
 
 ### Prerequisites
 - Python 3.9 or higher
-- PostgreSQL 12 or higher
+- Supabase account (PostgreSQL database)
 - Google Gemini API key
-- Tesseract OCR (for image text extraction)
+- Tesseract OCR (optional - for image text extraction)
 
 ### Step 1: Clone Repository
 ```powershell
@@ -199,8 +199,8 @@ DEBUG=True
 HOST=0.0.0.0
 PORT=8000
 
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/slca_db
+# Database Configuration (Supabase PostgreSQL)
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 
 # Security
 SECRET_KEY=your-super-secret-key-change-this-in-production
@@ -232,20 +232,18 @@ FROM_EMAIL=noreply@slca.com
 
 ### Database Setup
 
-1. **Create PostgreSQL Database**
-```powershell
-# Using psql
-psql -U postgres
-CREATE DATABASE slca_db;
-CREATE USER slca_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE slca_db TO slca_user;
-\q
-```
+**Using Supabase PostgreSQL:**
 
-2. **Initialize Database Tables**
+1. **Create a Supabase project** at https://supabase.com
+2. **Get your connection string** from Project Settings > Database
+3. **Update .env file** with your Supabase connection URL
+   - Note: URL-encode special characters in password (@ becomes %40)
+4. **Initialize Database Tables**
 ```powershell
 python migrate.py create
 ```
+
+The migration script will automatically create all 12 required tables in your Supabase database.
 
 ## 🏃 Running the Application
 
@@ -664,13 +662,13 @@ WantedBy=multi-user.target
 ```
 Error: could not connect to server
 ```
-**Solution**: Check PostgreSQL is running and DATABASE_URL is correct
+**Solution**: Check your Supabase connection string in `.env` is correct
 ```powershell
-# Check PostgreSQL status
-Get-Service postgresql*
+# Test connection with migrate script
+python migrate.py check
 
-# Test connection
-psql -U username -d slca_db
+# Verify DATABASE_URL format
+# postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 ```
 
 **2. Import Errors**

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # Database
-    DATABASE_URL: str = "postgresql://slca_user:password@localhost:5432/slca_db"
+    DATABASE_URL: str = "postgresql://postgres.oontclllyucbqslumxpm:ABcd%403824@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
     
     # JWT Configuration
     SECRET_KEY: str = "your-secret-key-change-in-production"
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     @property
     def supadata_key(self) -> str:
         """Get Supadata API key with fallback to default"""
-        return self.SUPADATA_API_KEY or "sd_9ca474be577377227db0a0a4a023dffb"
+        return self.SUPADATA_API_KEY or "sd_245f623eefcb963f4389b15b2b09ec16"
     
     @property
     def extractor_key(self) -> str:

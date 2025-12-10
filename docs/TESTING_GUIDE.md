@@ -26,15 +26,18 @@ pip install -r requirements.txt
 
 # Install testing tools
 pip install pytest pytest-asyncio httpx pytest-cov
-
-# Setup test database
-createdb slca_test_db
 ```
+
+**Note**: For testing, you can either:
+- Use your main Supabase database (recommended for development)
+- Create a separate Supabase project for testing
+- Use a local PostgreSQL instance for testing
 
 ### Environment Configuration
 Create `.env.test` file:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/slca_test_db
+# Use your Supabase connection string or local test database
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 SECRET_KEY=test-secret-key-do-not-use-in-production
 GOOGLE_API_KEY=your-test-api-key
 ```

@@ -173,7 +173,7 @@ export default function CareerPage() {
                 </div>
                 <h3 className="font-bold text-xl mb-3 text-gray-900">Career Recommendations</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Get personalized career path suggestions based on your skills and experience
+                  Get personalized career suggestions based on your skills and experience
                 </p>
               </div>
             </Card>

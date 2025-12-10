@@ -118,7 +118,7 @@ SLCA-project/
 ### Prerequisites
 - Python 3.9 or higher
 - Node.js 18 or higher
-- PostgreSQL database
+- Supabase account (for PostgreSQL database)
 - Google Gemini API key
 
 ### Backend Setup
@@ -148,9 +148,14 @@ cp .env.example .env
 
 Edit `.env` with your configuration:
 ```env
-DATABASE_URL=postgresql://user:password@localhost/slca_db
+# Supabase PostgreSQL Connection
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+
+# AI & Security
 GEMINI_API_KEY=your_gemini_api_key_here
 SECRET_KEY=your_secret_key_here
+
+# Email (Optional)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
@@ -159,7 +164,7 @@ SMTP_PASSWORD=your_app_password
 
 5. **Initialize database**
 ```bash
-python migrate.py init
+python migrate.py create
 ```
 
 6. **Start the backend server**

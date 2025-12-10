@@ -7,14 +7,14 @@ Complete setup instructions for the Student Learning & Career Assistant platform
 ### Minimum Requirements
 - **OS**: Windows 10/11, macOS 10.15+, or Ubuntu 20.04+
 - **RAM**: 8GB (16GB recommended)
-- **Storage**: 10GB free space
+- **Storage**: 5GB free space
 - **Python**: 3.9 or higher
-- **PostgreSQL**: 13 or higher
+- **Supabase Account**: Free tier is sufficient
 - **Node.js**: 18 or higher (for frontend)
 
 ### Software Prerequisites
 1. Python 3.9+
-2. PostgreSQL
+2. Supabase account (https://supabase.com)
 3. Git
 4. pip (Python package manager)
 5. Node.js and npm (for frontend)
@@ -28,53 +28,27 @@ git clone https://github.com/abdullahjvd384/SLCA-project.git
 cd SLCA-project
 ```
 
-### Step 2: PostgreSQL Database Setup
+### Step 2: Supabase Database Setup
 
-#### Windows (using PostgreSQL installer)
-```bash
-# After installing PostgreSQL, open pgAdmin or use psql
-psql -U postgres
+1. **Create a Supabase account** at https://supabase.com (if you don't have one)
 
-# In PostgreSQL shell:
-CREATE DATABASE slca_db;
-CREATE USER slca_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE slca_db TO slca_user;
-\q
-```
+2. **Create a new project**:
+   - Click "New Project"
+   - Enter project name (e.g., "SLCA")
+   - Set a strong database password
+   - Choose a region close to you
+   - Wait for project to be ready (~2 minutes)
 
-#### macOS (using Homebrew)
-```bash
-brew install postgresql
-brew services start postgresql
+3. **Get your connection string**:
+   - Go to Project Settings > Database
+   - Find "Connection string" section
+   - Copy the URI mode connection string
+   - It looks like: `postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres`
 
-# Create database
-createdb slca_db
-psql slca_db
-
-# In PostgreSQL shell:
-CREATE USER slca_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE slca_db TO slca_user;
-\q
-```
-
-#### Linux (Ubuntu/Debian)
-```bash
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-
-# Start PostgreSQL
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create database
-sudo -u postgres psql
-
-# In PostgreSQL shell:
-CREATE DATABASE slca_db;
-CREATE USER slca_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE slca_db TO slca_user;
-\q
-```
+4. **Note**: If your password contains special characters, URL-encode them:
+   - `@` becomes `%40`
+   - `#` becomes `%23`
+   - `$` becomes `%24`
 
 ### Step 3: Python Virtual Environment
 
@@ -117,8 +91,8 @@ cp .env.example .env
 2. Edit `.env` file with your configurations:
 
 ```env
-# Database Configuration
-DATABASE_URL=postgresql://slca_user:your_secure_password@localhost:5432/slca_db
+# Supabase Database Configuration
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 
 # JWT Secret Key (generate a secure random key)
 SECRET_KEY=your-very-secure-secret-key-change-this
@@ -326,12 +300,11 @@ If you encounter issues:
 # Backend
 pip list                          # List installed packages
 pip freeze > requirements.txt     # Update requirements
-python main.py                    # Alternative way to run server
+python run.py                     # Run server with checks
 
-# Database
-psql -U slca_user -d slca_db     # Connect to database
-\dt                               # List tables
-\d table_name                     # Describe table
+# Database Management
+python migrate.py check           # Check database connection
+python migrate.py create          # Create all tables
 
 # Git
 git status                        # Check status
@@ -342,4 +315,4 @@ git commit -m "message"           # Commit changes
 
 ---
 
-**Last Updated**: November 2025
+**Last Updated**: December 2025

@@ -6,8 +6,9 @@ This guide will get you up and running with the SLCA platform in minutes.
 
 Before you begin, ensure you have:
 - [ ] Python 3.9+ installed
-- [ ] PostgreSQL installed and running
+- [ ] Supabase account created (https://supabase.com)
 - [ ] Git installed
+- [ ] Google Gemini API key
 - [ ] Internet connection for API access
 
 ## 5-Minute Quick Setup
@@ -39,15 +40,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Setup Database (1 minute)
+### 4. Setup Supabase Database (1 minute)
 
-```bash
-# Open PostgreSQL shell
-psql -U postgres
-
-# Run these commands:
-CREATE DATABASE slca_db;
-CREATE USER slca_user WITH PASSWORD 'password123';
+1. Create a Supabase project at https://supabase.com
+2. Get your connection string from Project Settings > Database
+3. Copy to your `.env` file (see next step)
 GRANT ALL PRIVILEGES ON DATABASE slca_db TO slca_user;
 \q
 ```
@@ -61,9 +58,16 @@ cp .env.example .env
 
 Edit `.env` and add minimum required values:
 ```env
-DATABASE_URL=postgresql://slca_user:password123@localhost:5432/slca_db
+# Your Supabase connection string
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 SECRET_KEY=your-secret-key-here-change-this
 GOOGLE_API_KEY=your-gemini-api-key
+```
+
+### 5. Initialize Database (30 seconds)
+
+```bash
+python migrate.py create
 ```
 
 ### 6. Run the Server (30 seconds)
@@ -205,19 +209,18 @@ venv\Scripts\activate  # Windows
 source venv/bin/activate  # Mac/Linux
 
 # Run server
-uvicorn main:app --reload
+python run.py
 
-# Run with different port
-uvicorn main:app --reload --port 8001
+# Run with uvicorn directly
+uvicorn main:app --reload --port 8000
 
 # Install new package
 pip install package-name
 pip freeze > requirements.txt
 
 # Database operations
-psql -U slca_user -d slca_db  # Connect to DB
-\dt  # List tables
-\d table_name  # Describe table
+python migrate.py check    # Check database connection
+python migrate.py create   # Create all tables
 
 # Git operations
 git status
