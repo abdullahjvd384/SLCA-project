@@ -37,26 +37,33 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Verify a password against its hash.
     Supports both new bcrypt and legacy passlib formats.
     """
+    # Try NEW bcrypt format first (with SHA-256 normalization - ALWAYS applied)
     try:
-        # Try NEW bcrypt format first (with SHA-256 normalization)
         normalized_password = _normalize_password(plain_password)
         if bcrypt.checkpw(normalized_password, hashed_password.encode('utf-8')):
             return True
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, Exception):
         pass
     
     # Try LEGACY passlib format for backward compatibility
+    # Legacy code also used SHA-256 normalization, so try that first
     try:
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         
-        # Check if password is long (>72 bytes) - old code used SHA-256 pre-hash for long passwords
-        password_bytes = plain_password.encode('utf-8')
-        if len(password_bytes) > 72:
-            normalized_plain = hashlib.sha256(password_bytes).hexdigest()
-            return pwd_context.verify(normalized_plain, hashed_password)
-        else:
-            return pwd_context.verify(plain_password, hashed_password)
+        # Try with SHA-256 normalization (consistent with old long password handling)
+        normalized_plain = hashlib.sha256(plain_password.encode('utf-8')).hexdigest()
+        if pwd_context.verify(normalized_plain, hashed_password):
+            return True
+    except Exception:
+        pass
+    
+    # Try LEGACY passlib without normalization (for very old passwords)
+    try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        if pwd_context.verify(plain_password, hashed_password):
+            return True
     except Exception:
         pass
     
