@@ -33,9 +33,34 @@ def _normalize_password(password: str) -> bytes:
     return sha256_hash.encode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its bcrypt hash"""
-    normalized_password = _normalize_password(plain_password)
-    return bcrypt.checkpw(normalized_password, hashed_password.encode('utf-8'))
+    """
+    Verify a password against its hash.
+    Supports both new bcrypt and legacy passlib formats.
+    """
+    try:
+        # Try NEW bcrypt format first (with SHA-256 normalization)
+        normalized_password = _normalize_password(plain_password)
+        if bcrypt.checkpw(normalized_password, hashed_password.encode('utf-8')):
+            return True
+    except (ValueError, AttributeError):
+        pass
+    
+    # Try LEGACY passlib format for backward compatibility
+    try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        # Check if password is long (>72 bytes) - old code used SHA-256 pre-hash for long passwords
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 72:
+            normalized_plain = hashlib.sha256(password_bytes).hexdigest()
+            return pwd_context.verify(normalized_plain, hashed_password)
+        else:
+            return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        pass
+    
+    return False
 
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt"""
